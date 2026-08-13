@@ -153,6 +153,23 @@ if (settings.maxPlayers === undefined) settings.maxPlayers = 100;
 if (settings.dataDir === undefined) settings.dataDir = 'data';
 if (settings.gamemodePath === undefined) settings.gamemodePath = 'gamemode.js';
 
+// The addon falls back to the five masters internally when loadOrder is absent,
+// but manifestGen reads the TypeScript setting, which defaults to an empty
+// array. Leaving it unset therefore publishes a manifest listing no plugins at
+// all, and the client's load-order check compares against nothing: every player
+// passes verification regardless of what they have installed. Spelling the
+// default out here keeps the published manifest honest.
+if (settings.loadOrder === undefined) {
+  settings.loadOrder = [
+    'Skyrim.esm',
+    'Update.esm',
+    'Dawnguard.esm',
+    'HearthFires.esm',
+    'Dragonborn.esm',
+  ];
+  applied.push('loadOrder=<the five masters>');
+}
+
 // Default the http port to the game port rather than to port + 1 (or 3000).
 // The game port is UDP and this is TCP, and an orchestrator maps both
 // protocols for one allocation, so sharing the number makes the only routable
