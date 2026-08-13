@@ -19,6 +19,7 @@
     </div>
     <nav class="tabs" role="tablist">
       <button class="tab is-active" data-view="servers" role="tab">Servers</button>
+      <button class="tab" data-view="admin" role="tab" id="tab-admin" hidden>Modpacks</button>
       <button class="tab" data-view="settings" role="tab">Settings</button>
     </nav>
   </header>
@@ -42,6 +43,47 @@
 
       <ul id="server-list" class="server-list"></ul>
       <p id="list-empty" class="empty" hidden>No servers listed yet. Use the address box above to connect directly.</p>
+    </section>
+
+    <!-- Modpacks (admin) -->
+    <section class="view" id="view-admin">
+      <div class="toolbar">
+        <div class="connect">
+          <input id="admin-modref" type="text" spellcheck="false"
+                 placeholder="Paste a Nexus mod link, or a mod id" aria-label="Nexus mod" />
+          <button id="btn-admin-lookup" class="btn btn-primary">Look up</button>
+        </div>
+        <div class="toolbar-right">
+          <select id="admin-server" class="select" aria-label="Server"></select>
+          <button id="btn-admin-publish" class="btn btn-primary">Publish</button>
+        </div>
+      </div>
+
+      <p id="admin-error" class="error" hidden></p>
+
+      <!-- File chooser, shown after a lookup -->
+      <div id="admin-picker" class="picker" hidden>
+        <div class="picker-head">
+          <strong id="admin-mod-name"></strong>
+          <span id="admin-mod-meta" class="muted small"></span>
+          <button id="btn-admin-cancel" class="btn btn-quiet">Cancel</button>
+        </div>
+        <ul id="admin-files" class="file-list"></ul>
+      </div>
+
+      <div id="admin-progress" class="progress" hidden>
+        <div class="progress-bar"><span id="admin-progress-fill"></span></div>
+        <p id="admin-progress-text" class="muted small"></p>
+      </div>
+
+      <p class="muted small" id="admin-hint">
+        Mods are downloaded and opened so their hash and plugins can be recorded.
+        Tick a plugin when the <em>server</em> must load it: those are ordered first,
+        and everything else follows.
+      </p>
+
+      <ul id="admin-list" class="pack-list"></ul>
+      <p id="admin-empty" class="empty">No mods yet. Paste a Nexus link above to start a pack.</p>
     </section>
 
     <!-- Settings -->
@@ -109,6 +151,17 @@
           Your own setup is never modified.
         </span>
       </div>
+
+      <label class="field">
+        <span class="field-label">Admin key</span>
+        <div class="setting-path-row">
+          <input id="setting-admin-key" type="password" spellcheck="false" placeholder="Only needed to publish modpacks" />
+          <button id="btn-admin-key" class="btn">Save key</button>
+        </div>
+        <span class="field-hint">
+          Unlocks the Modpacks tab. Must match the backend's ADMIN_KEY. Leave blank if you only play.
+        </span>
+      </label>
 
       <div class="field-actions">
         <button id="btn-save-settings" class="btn btn-primary">Save</button>

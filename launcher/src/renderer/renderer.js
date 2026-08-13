@@ -429,6 +429,226 @@ async function refreshPlayState() {
     : '';
 }
 
+// ── modpack builder (admin) ──────────────────────────────────────────────────
+
+let pack = [];              // entries, in load order
+let serverPlugins = new Set(); // plugin names the server must load
+let lookup = null;          // the mod currently being picked from
+
+const adminError = (msg) => {
+  const el = $('admin-error');
+  if (!msg) {
+    el.hidden = true;
+    return;
+  }
+  el.textContent = msg;
+  el.hidden = false;
+};
+
+function renderPack() {
+  const ul = $('admin-list');
+  ul.textContent = '';
+  $('admin-empty').hidden = pack.length > 0;
+
+  pack.forEach((entry, index) => {
+    const li = document.createElement('li');
+    li.className = 'pack-row';
+
+    const head = document.createElement('div');
+    head.className = 'pack-head';
+
+    const name = document.createElement('span');
+    name.className = 'pack-name';
+    name.textContent = entry.name;
+
+    const meta = document.createElement('span');
+    meta.className = 'file-meta';
+    const plugins = entry.plugins.length;
+    meta.textContent = `${plugins} plugin${plugins === 1 ? '' : 's'} · ${(entry.size / 1048576).toFixed(1)} MB`;
+
+    const order = document.createElement('div');
+    order.className = 'pack-order';
+    const up = document.createElement('button');
+    up.className = 'btn-tiny';
+    up.textContent = '↑';
+    up.disabled = index === 0;
+    up.title = 'Move earlier in the load order';
+    up.addEventListener('click', () => {
+      [pack[index - 1], pack[index]] = [pack[index], pack[index - 1]];
+      renderPack();
+    });
+    const down = document.createElement('button');
+    down.className = 'btn-tiny';
+    down.textContent = '↓';
+    down.disabled = index === pack.length - 1;
+    down.title = 'Move later in the load order';
+    down.addEventListener('click', () => {
+      [pack[index + 1], pack[index]] = [pack[index], pack[index + 1]];
+      renderPack();
+    });
+    const remove = document.createElement('button');
+    remove.className = 'btn-tiny';
+    remove.textContent = '×';
+    remove.title = 'Remove from the pack';
+    remove.addEventListener('click', () => {
+      for (const p of pack[index].plugins) serverPlugins.delete(p);
+      pack.splice(index, 1);
+      renderPack();
+    });
+    order.append(up, down, remove);
+
+    head.append(name, meta, order);
+    li.appendChild(head);
+
+    if (entry.plugins.length) {
+      const row = document.createElement('div');
+      row.className = 'pack-plugins';
+      for (const plugin of entry.plugins) {
+        const label = document.createElement('label');
+        label.className = `plugin-toggle${serverPlugins.has(plugin) ? ' is-server' : ''}`;
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        box.checked = serverPlugins.has(plugin);
+        box.addEventListener('change', () => {
+          if (box.checked) serverPlugins.add(plugin);
+          else serverPlugins.delete(plugin);
+          renderPack();
+        });
+        const text = document.createElement('span');
+        text.textContent = plugin;
+        label.append(box, text);
+        row.appendChild(label);
+      }
+      li.appendChild(row);
+    }
+
+    ul.appendChild(li);
+  });
+}
+
+$('btn-admin-lookup').addEventListener('click', async () => {
+  adminError('');
+  const btn = $('btn-admin-lookup');
+  btn.disabled = true;
+  try {
+    const res = await window.hg.adminResolveMod($('admin-modref').value);
+    if (!res.ok) return adminError(res.error);
+
+    lookup = res;
+    $('admin-mod-name').textContent = res.mod.name;
+    $('admin-mod-meta').textContent = [
+      res.mod.author && `by ${res.mod.author}`,
+      res.mod.version && `v${res.mod.version}`,
+      !res.mod.available && 'UNAVAILABLE ON NEXUS',
+    ].filter(Boolean).join(' · ');
+
+    const list = $('admin-files');
+    list.textContent = '';
+    if (!res.files.length) {
+      adminError('This mod has no downloadable files.');
+      return;
+    }
+    for (const file of res.files) {
+      const li = document.createElement('li');
+      const name = document.createElement('span');
+      name.className = 'file-name';
+      name.textContent = file.name;
+      const meta = document.createElement('span');
+      meta.className = 'file-meta';
+      meta.textContent = [file.category, file.version && `v${file.version}`].filter(Boolean).join(' · ');
+      li.append(name, meta);
+      li.addEventListener('click', () => addFile(res.mod, file));
+      list.appendChild(li);
+    }
+    $('admin-picker').hidden = false;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$('btn-admin-cancel').addEventListener('click', () => {
+  $('admin-picker').hidden = true;
+  lookup = null;
+});
+
+async function addFile(mod, file) {
+  $('admin-picker').hidden = true;
+  $('admin-progress').hidden = false;
+  $('admin-progress-text').textContent = `Downloading ${mod.name}...`;
+  adminError('');
+
+  try {
+    const res = await window.hg.adminAddMod(mod.modId, file.fileId, mod.name);
+    if (!res.ok) return adminError(res.error);
+
+    // Replacing rather than appending, so re-adding a mod to change its file
+    // does not silently leave the old entry in the pack.
+    const existing = pack.findIndex((e) => e.nexusModId === mod.modId);
+    if (existing >= 0) {
+      for (const p of pack[existing].plugins) serverPlugins.delete(p);
+      pack[existing] = res.entry;
+    } else {
+      pack.push(res.entry);
+    }
+    renderPack();
+  } finally {
+    $('admin-progress').hidden = true;
+  }
+}
+
+$('btn-admin-publish').addEventListener('click', async () => {
+  adminError('');
+  if (!pack.length) return adminError('Add at least one mod first.');
+
+  const serverId = $('admin-server').value;
+  const btn = $('btn-admin-publish');
+  btn.disabled = true;
+  try {
+    const res = await window.hg.adminPublish(serverId, pack, [...serverPlugins]);
+    if (!res.ok) {
+      // The backend explains which rule was broken; showing only "failed"
+      // would leave an admin with nothing to act on.
+      const detail = (res.details || []).join(' ');
+      return adminError(`${res.error}${detail ? ` — ${detail}` : ''}`);
+    }
+    $('admin-hint').textContent = `Published version ${res.version} to ${serverId}.`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+async function renderAdmin() {
+  const status = await window.hg.adminStatus();
+  $('tab-admin').hidden = !status.enabled;
+  if (!status.enabled) return;
+
+  const select = $('admin-server');
+  const chosen = select.value;
+  select.textContent = '';
+  const list = await window.hg.listServers();
+  for (const server of (list.servers || [])) {
+    const option = document.createElement('option');
+    option.value = server.id;
+    option.textContent = server.name || server.id;
+    select.appendChild(option);
+  }
+  if (chosen) select.value = chosen;
+}
+
+$('btn-admin-key').addEventListener('click', async () => {
+  await window.hg.adminSetKey($('setting-admin-key').value);
+  $('setting-admin-key').value = '';
+  await renderAdmin();
+});
+
+window.hg.onInstallProgress((p) => {
+  if (p.scope !== 'admin') return;
+  $('admin-progress').hidden = false;
+  $('admin-progress-text').textContent =
+    p.phase === 'inspect' ? `Reading ${p.name}...` : `Downloading ${p.name}...`;
+  $('admin-progress-fill').style.width = `${Math.round((p.progress || 0) * 100)}%`;
+});
+
 // ── boot ─────────────────────────────────────────────────────────────────────
 
 // A protocol click can arrive before this window exists, so anything queued in
@@ -458,6 +678,7 @@ window.hg.onNxmDownload(handleNxm);
   account = await window.hg.nexusAccount();
   renderAccount();
   renderMo2();
+  renderAdmin();
 
   for (const queued of await window.hg.drainNxm()) handleNxm(queued);
 

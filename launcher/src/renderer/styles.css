@@ -241,6 +241,81 @@ input[type="text"]:focus {
   line-height: 1.45;
 }
 
+/* ── modpack builder ─────────────────────────────────────────────────── */
+
+.select {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 8px 10px;
+  font: inherit;
+  min-width: 170px;
+}
+
+.picker {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.picker-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.picker-head strong { flex: 1; }
+
+.file-list { list-style: none; margin: 0; padding: 0; max-height: 210px; overflow-y: auto; }
+.file-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.file-list li:hover { background: var(--bg-hover); border-color: var(--line); }
+.file-list .file-name { flex: 1; }
+.file-list .file-meta { color: var(--text-dim); font-size: 12.5px; white-space: nowrap; }
+
+.pack-list { list-style: none; margin: 0; padding: 0; }
+.pack-row {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.pack-head { display: flex; align-items: center; gap: 10px; }
+.pack-name { flex: 1; font-weight: 600; }
+.pack-order { display: flex; gap: 4px; }
+.btn-tiny {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--text-dim);
+  width: 26px; height: 26px;
+  font: inherit; line-height: 1; cursor: pointer;
+}
+.btn-tiny:hover { color: var(--text); background: var(--bg-hover); }
+.btn-tiny:disabled { opacity: .35; cursor: default; }
+
+/* Which plugins the server loads is the single most consequential choice in
+   the whole builder, so it is right here on the row rather than behind a
+   dialog. */
+.pack-plugins { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.plugin-toggle {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 3px 7px;
+  cursor: pointer;
+}
+.plugin-toggle input { margin: 0; }
+.plugin-toggle.is-server { color: var(--text); border-color: var(--accent); }
+
 /* ── misc ────────────────────────────────────────────────────────────── */
 
 .muted { color: var(--text-dim); }

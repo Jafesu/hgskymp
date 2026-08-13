@@ -11,6 +11,7 @@ const nexus = require('./lib/nexus');
 const mo2 = require('./lib/mo2');
 const install = require('./lib/install');
 const preflight = require('./lib/preflight');
+const modpack = require('./lib/modpack');
 const pkg = require('../package.json');
 
 nexus.setAppIdentity('HardGamingSkyMPLauncher', pkg.version);
@@ -326,6 +327,117 @@ ipcMain.handle('game:detect', async () => {
 });
 
 ipcMain.handle('game:check', (_e, dir) => inspectGameFolder(dir || store.get('skyrimPath')));
+
+// ── admin: assembling and publishing a modpack ───────────────────────────────
+//
+// Gated on an admin key being present rather than on a role, because the key is
+// what the backend actually checks. No key, no Admin tab.
+
+ipcMain.handle('admin:status', () => ({
+  enabled: !!store.get('adminKey'),
+  backendUrl: backendUrl(),
+}));
+
+ipcMain.handle('admin:setKey', (_e, key) => {
+  const value = typeof key === 'string' ? key.trim() : '';
+  if (value) store.set('adminKey', value);
+  else store.delete('adminKey');
+  return { ok: true, enabled: !!value };
+});
+
+/** Resolve what an admin pasted into a mod and its downloadable files. */
+ipcMain.handle('admin:resolveMod', async (_e, input) => {
+  const ref = modpack.parseModRef(input);
+  if (!ref) return { ok: false, error: 'Paste a Nexus mod link or a mod id.' };
+  if (ref.game && ref.game !== nexus.GAME) {
+    return { ok: false, error: `That link is for ${ref.game}, not Skyrim Special Edition.` };
+  }
+
+  const key = store.get('nexusApiKey');
+  if (!key) return { ok: false, error: 'Sign in to Nexus first.' };
+
+  const [mod, files] = await Promise.all([nexus.getMod(key, ref.modId), nexus.listFiles(key, ref.modId)]);
+  if (!mod.ok) return { ok: false, error: mod.error };
+  if (!files.ok) return { ok: false, error: files.error };
+
+  // Old versions and archived uploads would install something no player is
+  // expected to have, so only currently offered files are shown.
+  const usable = files.files.filter((f) => f.category_name && f.category_name !== 'OLD_VERSION');
+
+  return {
+    ok: true,
+    mod,
+    suggestedFileId: ref.fileId,
+    files: usable.map((f) => ({
+      fileId: f.file_id,
+      name: f.name,
+      fileName: f.file_name,
+      version: f.version,
+      category: f.category_name,
+      sizeKb: f.size_kb || f.size,
+    })),
+  };
+});
+
+/**
+ * Download a file and read what it contributes.
+ *
+ * The archive has to be fetched and opened: its hash and plugin list are what
+ * the backend requires, and neither is available from the API.
+ */
+ipcMain.handle('admin:addMod', async (_e, modId, fileId, displayName) => {
+  const key = store.get('nexusApiKey');
+  if (!key) return { ok: false, error: 'Sign in to Nexus first.' };
+
+  const links = await nexus.getDownloadLinks(key, modId, fileId);
+  if (!links.ok) {
+    return {
+      ok: false,
+      error: links.needsHandoff
+        ? 'Building a modpack needs direct downloads, which Nexus only gives Premium accounts. Sign in with a Premium account to assemble packs.'
+        : links.error,
+    };
+  }
+
+  const dest = path.join(mo2.getDownloadsDir(), `${modId}-${fileId}.archive`);
+  fs.mkdirSync(mo2.getDownloadsDir(), { recursive: true });
+
+  let fetched = null;
+  for (const url of links.urls) {
+    const res = await mo2.download(url, dest, (p) =>
+      progress({ scope: 'admin', name: displayName, progress: p })
+    );
+    if (res.ok) {
+      fetched = res;
+      break;
+    }
+  }
+  if (!fetched) return { ok: false, error: 'every download mirror failed' };
+
+  progress({ scope: 'admin', name: displayName, phase: 'inspect' });
+  const inspection = await modpack.inspectArchive(dest);
+  if (!inspection.ok) return { ok: false, error: `could not read the archive: ${inspection.error}` };
+
+  return {
+    ok: true,
+    entry: modpack.buildEntry({
+      name: displayName,
+      modId,
+      fileId,
+      fileName: path.basename(dest),
+      inspection,
+    }),
+  };
+});
+
+ipcMain.handle('admin:publish', async (_e, serverId, entries, serverPlugins) => {
+  const key = store.get('adminKey');
+  if (!key) return { ok: false, error: 'No admin key configured.' };
+  if (!serverId) return { ok: false, error: 'Choose a server to publish to.' };
+
+  const assembled = modpack.assemble(entries || [], serverPlugins || []);
+  return modpack.publish(backendUrl(), serverId, key, assembled);
+});
 
 // ── install and play ─────────────────────────────────────────────────────────
 

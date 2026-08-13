@@ -26,6 +26,14 @@ contextBridge.exposeInMainWorld('hg', {
   nexusSignOut: () => ipcRenderer.invoke('nexus:signOut'),
   nexusSso: () => ipcRenderer.invoke('nexus:sso'),
 
+  // Modpack building (admin)
+  adminStatus: () => ipcRenderer.invoke('admin:status'),
+  adminSetKey: (key) => ipcRenderer.invoke('admin:setKey', key),
+  adminResolveMod: (ref) => ipcRenderer.invoke('admin:resolveMod', ref),
+  adminAddMod: (modId, fileId, name) => ipcRenderer.invoke('admin:addMod', modId, fileId, name),
+  adminPublish: (serverId, entries, serverPlugins) =>
+    ipcRenderer.invoke('admin:publish', serverId, entries, serverPlugins),
+
   // Game folder
   browseGameFolder: () => ipcRenderer.invoke('game:browse'),
   detectGameFolder: () => ipcRenderer.invoke('game:detect'),

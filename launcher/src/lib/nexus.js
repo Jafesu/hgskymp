@@ -111,6 +111,25 @@ async function validate(auth) {
 
 // ── files ────────────────────────────────────────────────────────────────────
 
+/** Mod metadata, for showing an admin what they just pasted. */
+async function getMod(auth, modId) {
+  const res = await request(auth, `/v1/games/${GAME}/mods/${modId}.json`);
+  if (!res.ok) return { ok: false, error: res.error };
+  const body = res.body || {};
+  return {
+    ok: true,
+    modId,
+    name: body.name,
+    summary: body.summary,
+    author: body.author,
+    version: body.version,
+    adult: body.contains_adult_content === true,
+    // A mod pulled from public view should not be silently published into a
+    // pack players will be told to install.
+    available: body.available !== false && body.status !== 'removed',
+  };
+}
+
 async function listFiles(auth, modId) {
   const res = await request(auth, `/v1/games/${GAME}/mods/${modId}/files.json`);
   if (!res.ok) return { ok: false, error: res.error };
@@ -289,6 +308,7 @@ module.exports = {
   API_KEY_PAGE,
   setAppIdentity,
   validate,
+  getMod,
   listFiles,
   getDownloadLinks,
   ssoLogin,
