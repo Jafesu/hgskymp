@@ -139,13 +139,17 @@ its published modpack into `data/modpack.json`, which the http port serves.
 | `PLATFORM_URL` | Backend to register with. Blank leaves the server unlisted |
 | `PLATFORM_SERVER_ID` | Stable id the server is listed under |
 | `PLATFORM_REGISTRATION_KEY` | Bearer secret the backend requires |
-| `PLATFORM_PUBLIC_HOST` | Address players connect to. **Required** with `PLATFORM_URL` |
-| `PLATFORM_PUBLIC_PORT` | Only when it differs from the game port |
 | `SERVER_DESCRIPTION` | One-line blurb for the list entry |
+| `PLATFORM_PUBLIC_HOST` | Override the advertised address. Rarely needed |
+| `PLATFORM_PUBLIC_PORT` | Override the advertised port. Rarely needed |
 
-`PLATFORM_PUBLIC_HOST` is mandatory rather than inferred because the server
-sees a bind address, not the NAT or DNS in front of it. Setting `PLATFORM_URL`
-without it aborts the boot rather than listing an address nobody can reach.
+The advertised address comes from the allocation: `SERVER_IP` and `SERVER_PORT`,
+which the panel already knows. There is nothing to fill in.
+
+`PLATFORM_PUBLIC_HOST` remains for the one thing an allocation cannot express: a
+hostname players should use instead of a bare IP. A bind-all `SERVER_IP` such as
+`0.0.0.0` is refused rather than advertised, and a server that cannot determine
+its own address aborts rather than listing an entry nobody can connect to.
 
 The http port also serves an unauthenticated `/api/status` returning name,
 players and maxPlayers, so a launcher can poll a server directly whether or not

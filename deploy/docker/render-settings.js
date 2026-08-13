@@ -118,6 +118,11 @@ const PLATFORM_MAPPINGS = [
   ['PLATFORM_HEARTBEAT_MS', 'heartbeatIntervalMs', asInt],
 ];
 
+// A bind address is not somewhere players can connect to, so it must never be
+// advertised as one.
+const isBindAllAddress = (host) =>
+  ['0.0.0.0', '::', '[::]', '127.0.0.1', 'localhost', '::1'].includes(String(host).trim().toLowerCase());
+
 const platformApplied = [];
 for (const [envKey, settingKey, coerce] of PLATFORM_MAPPINGS) {
   const raw = process.env[envKey];
@@ -135,12 +140,35 @@ for (const [envKey, settingKey, coerce] of PLATFORM_MAPPINGS) {
 }
 if (platformApplied.length) applied.push(...platformApplied);
 
-// A server that registers without a reachable address lists itself as
-// unjoinable. It cannot infer this: it sees a bind address, not the NAT or DNS
-// in front of it.
-if (settings.platform && settings.platform.url && !settings.platform.publicHost) {
-  console.error('[settings] PLATFORM_URL is set but PLATFORM_PUBLIC_HOST is not; the server would list an address nobody can reach');
-  process.exit(1);
+// The panel already knows where players reach this server, so the address is
+// taken from the allocation rather than asked for twice. PLATFORM_PUBLIC_HOST
+// stays honoured for the case the allocation cannot express: a hostname players
+// should use instead of a bare IP.
+if (settings.platform && settings.platform.url) {
+  if (!settings.platform.publicHost && !isBindAllAddress(process.env.SERVER_IP || '')) {
+    const fromAllocation = String(process.env.SERVER_IP || '').trim();
+    if (fromAllocation) {
+      settings.platform.publicHost = fromAllocation;
+      applied.push(`platform.publicHost="${fromAllocation}" (from the allocation)`);
+    }
+  }
+
+  if (!settings.platform.publicPort && settings.port) {
+    settings.platform.publicPort = settings.port;
+    applied.push(`platform.publicPort=${settings.port} (from the allocation)`);
+  }
+
+  // Listing an address nobody can reach is worse than not being listed, so a
+  // server that cannot work out its own address refuses to start rather than
+  // advertising a broken entry.
+  if (!settings.platform.publicHost) {
+    console.error(
+      '[settings] PLATFORM_URL is set but no public address could be determined.\n' +
+        '[settings]          SERVER_IP was empty or a bind-all address. Set PLATFORM_PUBLIC_HOST\n' +
+        '[settings]          to the hostname or IP players connect to.'
+    );
+    process.exit(1);
+  }
 }
 
 // The addon reads these with an unguarded .at(), so a missing key aborts the
