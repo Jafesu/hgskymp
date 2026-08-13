@@ -176,6 +176,48 @@ So:
 Detect premium at login (`/v1/users/validate.json` returns `is_premium`) and
 pick the path silently. Never dead-end a free user.
 
+### Mod management: portable MO2, never the player's own setup
+
+The client compares the game's active plugin list against the server manifest
+index by index on filename, crc32 **and size**. Three things get a player
+refused, and only the third is obvious:
+
+1. any extra plugin sorted ahead of a server plugin, which shifts every later index;
+2. fewer plugins than the server has;
+3. a plugin with the right name but a **different version**, because the crc32 differs.
+
+That third case means a player who already installed SkyUI through Vortex at a
+slightly different version is rejected despite "having SkyUI". No mod manager
+fixes this on its own; only controlling exactly what the game loads does.
+
+So the launcher owns a **portable MO2 instance** of its own, separate from
+whatever the player already uses. MO2 overlays mods virtually rather than
+copying them into `Data/`, and the launcher writes the profile's `plugins.txt`,
+so the active set is exactly the modpack. The player's own MO2 or Vortex setup
+is never touched.
+
+**Vortex is not an option** for this: it deploys by hardlinking into the real
+`Data/` folder, so it mutates the install and fights anything else managing the
+same game.
+
+MO2 gives strong isolation, not perfect: it overlays *on top of* the real
+`Data/`, so files Vortex previously hardlinked there are still physically
+present. An **optional isolated game copy** closes that gap for players who
+want it and have the ~15GB.
+
+### Pre-flight verification, not a hopeful launch
+
+Before starting the game the launcher resolves the active plugin list and
+checks it against the server manifest. A mismatch is reported in the launcher,
+naming the offending plugin and both versions, with an offer to install the
+server's version into the launcher's own mod set. Nothing the player manages
+elsewhere is ever modified silently.
+
+This is the difference between "SkyUI is 5.1, the server wants 5.2SE, fix it?"
+and a refused connection carrying an opaque load-order error. The manifest
+already carries crc32 and size for exactly this comparison, so the check is
+nearly free.
+
 ### Install pipeline
 
 Archive → verify `sha256` → extract → place into an MO2 mod folder → write
