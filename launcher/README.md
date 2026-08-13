@@ -1,4 +1,4 @@
-# HardGaming Launcher
+# HardGaming SkyMP Launcher
 
 Electron launcher for SkyMP servers. Generic by design: it lists whatever
 servers the configured backend knows about, and connects directly to any

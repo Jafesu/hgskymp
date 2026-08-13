@@ -43,7 +43,19 @@ body { display: flex; flex-direction: column; }
   flex: none;
 }
 
-.brand { display: flex; align-items: center; }
+.brand { display: flex; align-items: center; gap: 12px; }
+
+/* Locks up beside the wordmark rather than competing with it: the logo carries
+   the brand, this says which product it is. */
+.brand-suffix {
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border-left: 1px solid var(--line);
+  padding-left: 12px;
+}
 
 /* Source is 362x70; height-constrained so the wordmark stays crisp and the
    bar keeps its 56px rhythm. */

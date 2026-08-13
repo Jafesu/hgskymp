@@ -6,7 +6,7 @@
 module.exports = {
   backendUrl: process.env.HG_BACKEND_URL || 'https://api.hardgaming.tech',
   brand: {
-    name: 'HardGaming',
+    name: 'HardGaming SkyMP Launcher',
     site: 'https://hardgaming.tech/',
   },
   // How often the server list refreshes while it is on screen
