@@ -43,24 +43,13 @@ body { display: flex; flex-direction: column; }
   flex: none;
 }
 
-.brand { display: flex; align-items: center; gap: 12px; }
+.brand { display: flex; align-items: center; }
 
-/* Locks up beside the wordmark rather than competing with it: the logo carries
-   the brand, this says which product it is. */
-.brand-suffix {
-  font-weight: 600;
-  font-size: 13px;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  border-left: 1px solid var(--line);
-  padding-left: 12px;
-}
-
-/* Source is 362x70; height-constrained so the wordmark stays crisp and the
-   bar keeps its 56px rhythm. */
+/* The mark stacks HARDGAMING over SKYMP at roughly 3:1, so it needs more
+   height than a single-line wordmark to stay readable. Height-constrained,
+   leaving breathing room inside the 56px bar. */
 .brand-logo {
-  height: 30px;
+  height: 38px;
   width: auto;
   display: block;
 }
