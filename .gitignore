@@ -9,3 +9,8 @@ node_modules
 # vim
 .*.swp
 skyrim_data_files/
+
+# Backend runtime data and deps
+skymp5-backend/data/
+skymp5-backend/node_modules/
+skymp5-backend/package-lock.json

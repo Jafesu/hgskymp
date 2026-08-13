@@ -104,6 +104,23 @@ until there is a reason for one.
 what `loadOrderVerificationService.ts` validates against; the backend modlist
 must be derived from it, not maintained in parallel.
 
+### Latent bug to design around: BSAs in the server's data dir
+
+`manifestGen.ts` appends a `.bsa` entry to `manifest.mods` whenever one sits
+beside a plugin in `dataDir`. The client builds its comparison list from
+`Game.getModCount` / `Game.getModName`, which enumerates **plugins only**, and
+`loadOrderVerificationService` compares the two lists **index by index**.
+
+So one `.bsa` dropped into the server's `data/` shifts every subsequent index
+and blocks every player with a load-order error that points nowhere near the
+cause. It only works today because a server's `data/` conventionally holds
+plugins alone — and `docs_server_data_directory.md` says BSAs are client-side.
+
+The modlist pipeline populates exactly that directory, so it must **place only
+plugins and loose `.pex` into the server's `data/`**, never archives. Worth
+fixing `manifestGen.ts` to emit plugins-only in `mods` as well, so the
+invariant is enforced rather than merely observed.
+
 ## 3. Pterodactyl / Docker additions
 
 On top of the ported container work, add env vars so a hosted server

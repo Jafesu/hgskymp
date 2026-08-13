@@ -73,9 +73,10 @@ is MSVC-gated, and no client, front or Papyrus scripts.
 CI publishes `runtime-byo` to GHCR on pushes to `main` and on `server-v*` tags.
 See [.github/workflows/docker-server.yml](../../.github/workflows/docker-server.yml).
 
-**GHCR creates new packages as private**, even under a public repo. After the
-first publish, make the package public once in its settings, or Wings nodes
-cannot pull it anonymously.
+**Check the package's visibility after the first publish.** A package under a
+personal account with a public repo is normally created public, but an
+org-owned one defaults to private. A private package cannot be pulled
+anonymously, so Wings nodes would each need registry credentials.
 
 ## Layout
 

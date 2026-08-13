@@ -101,6 +101,6 @@ jobs:
             echo "${{ steps.meta.outputs.tags }}"
             echo '```'
             echo ''
-            echo "GHCR creates new packages as **private**. Make it public once,"
-            echo "in the package settings, or Wings nodes cannot pull it."
+            echo "Check the package visibility on first publish. A private package"
+            echo "cannot be pulled anonymously, so Wings nodes would need credentials."
           } >> "$GITHUB_STEP_SUMMARY"
