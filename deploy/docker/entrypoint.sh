@@ -94,4 +94,14 @@ fi
 mkdir -p world
 
 log "starting: $*"
+
+# Hand PID 1 to tini so signals actually reach the server. Linux does not apply
+# default signal dispositions to PID 1, so node as PID 1 ignores SIGTERM and
+# SIGINT outright: a panel's stop button times out and escalates to SIGKILL.
+# Guarded so the script still works outside the image, where tini may be absent.
+if command -v tini >/dev/null 2>&1; then
+  exec tini -- "$@"
+fi
+
+log "tini not found, running without an init: stop signals may not be delivered"
 exec "$@"

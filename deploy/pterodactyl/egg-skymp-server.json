@@ -50,16 +50,6 @@
             "field_type": "text"
         },
         {
-            "name": "UI / metrics port",
-            "description": "TCP port for the http endpoints: static data, /api/status, /metrics and /rpc. Enter the SECOND allocation you assigned this server under the Network tab. There is no default on purpose: a pre-filled value gets accepted unread, and any port that is not one of this server's allocations binds inside the container but is unreachable from outside.",
-            "env_variable": "UI_PORT",
-            "default_value": "",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|integer|between:1,65535",
-            "field_type": "text"
-        },
-        {
             "name": "Offline mode",
             "description": "1 = any profile id may connect and the master API is ignored. 0 = sessions are validated against the master API.",
             "env_variable": "OFFLINE_MODE",

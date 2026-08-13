@@ -117,8 +117,15 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
  && apt-get install -y --no-install-recommends \
       nodejs \
       tzdata \
+      tini \
  && rm -rf /var/lib/apt/lists/* \
  && useradd -m -d /home/container -s /bin/bash container
+
+# tini is not decoration. The server ends up as PID 1, and Linux does not apply
+# default signal dispositions to PID 1, so a process without an explicit
+# SIGTERM/SIGINT handler simply ignores them: a panel's stop button times out
+# and escalates to SIGKILL, losing whatever was not yet flushed. tini takes
+# PID 1 and forwards signals to a child that does die from them.
 
 # scam_native.node links only libc, libm, libgcc_s, libresolv and libstdc++;
 # vcpkg links the rest statically. Anything else nodejs needs arrives as its
@@ -147,7 +154,9 @@ ENV SKYMP_HOME=/opt/skymp
 USER container
 WORKDIR /home/container
 
-EXPOSE 7777/udp 3000/tcp
+# One port, both protocols: the game is UDP and the http endpoints are TCP, so
+# a single allocation covers both.
+EXPOSE 7777/udp 7777/tcp
 
 ENTRYPOINT ["/opt/skymp/entrypoint.sh"]
 CMD ["node", "dist_back/skymp5-server.js"]

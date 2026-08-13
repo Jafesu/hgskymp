@@ -123,9 +123,11 @@ into the file is preserved.
 | `START_POINTS_JSON` | `startPoints` | Raw JSON |
 | `METRICS_AUTH_JSON` | `metricsAuth` | Raw JSON, `{"user":…,"password":…}` |
 
-`UI_PORT` exists because the server used to derive its http port as `port + 1`
-(or 3000 for the default 7777), which no orchestrator handing out arbitrary
-allocations can guarantee is free.
+`UI_PORT` is normally left unset. The container defaults the http port to the
+game port: the game is UDP and the http endpoints are TCP, so they share a
+number without colliding, and an orchestrator maps both protocols for one
+allocation. That makes the only routable port the correct one automatically.
+Set it only if you deliberately want them on separate ports.
 
 ### Getting listed in the launcher
 

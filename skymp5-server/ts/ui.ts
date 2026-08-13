@@ -134,11 +134,10 @@ export const resolveUiPort = (settings: Settings): number => {
     return derived;
   }
 
-  if (parsed === settings.port) {
-    console.error(`uiPort ${parsed} collides with the game port, using ${derived}`);
-    return derived;
-  }
-
+  // Deliberately allowed to equal the game port. That one is UDP (RakNet) and
+  // this one is TCP, so they occupy different namespaces, and orchestrators
+  // map both protocols for a single allocation. Sharing the number means a
+  // server needs one allocation rather than two.
   return parsed;
 };
 

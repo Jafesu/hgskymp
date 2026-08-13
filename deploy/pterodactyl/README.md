@@ -18,24 +18,28 @@ on a public or commercial node.
 Admin panel → Nests → Import Egg → upload the JSON. Then create a server on that
 egg.
 
-## Two allocations
+## One allocation
 
-The server binds two ports:
+The server binds two things on the **same port number**:
 
-- the **primary allocation**, UDP, for game traffic. Pterodactyl passes it as
-  `SERVER_PORT` and the container picks it up with no further configuration.
-- a **second allocation**, TCP, for the http endpoints: static `data/` contents,
-  `/metrics` and `/rpc`.
+- **UDP** for game traffic (RakNet)
+- **TCP** for the http endpoints: static `data/` contents, `/api/status`,
+  `/metrics` and `/rpc`
 
-Pterodactyl only exposes the primary allocation automatically, so add the second
-one under the server's **Network** tab, then set the egg's `UI_PORT` variable to
-that port number. They must not be equal.
+Different protocols, so they do not collide, and Pterodactyl maps both for a
+single allocation. The container defaults the http port to whatever
+`SERVER_PORT` it was given, so **the primary allocation is all you need and
+there is nothing to configure**.
 
-Historically this port was not configurable: the server derived it as `port + 1`,
-or 3000 when the game port was the default 7777. Since Pterodactyl hands out
-arbitrary allocations there was no way to guarantee `port + 1` was free, so the
-server gained a `uiPort` setting. If a backend talks to this server, its
-`SKYMP_UI_PORT` must match.
+There is no `UI_PORT` egg variable on purpose. It existed briefly, defaulted to
+3000, and that default was accepted unread: the server then bound a port Wings
+had never routed, so it looked healthy while `/api/status` and the modpack were
+unreachable from outside. A value that can be silently wrong is worse than no
+value at all.
+
+`uiPort` still exists as a setting for hosts that choose their own ports, and
+setting `UI_PORT` in the environment still overrides the default if you ever
+need them split.
 
 ## Game files
 
