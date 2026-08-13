@@ -43,21 +43,15 @@ body { display: flex; flex-direction: column; }
   flex: none;
 }
 
-.brand { display: flex; align-items: center; gap: 10px; }
+.brand { display: flex; align-items: center; }
 
-.brand-mark {
-  width: 20px; height: 20px;
-  background: var(--accent);
-  /* angular notch, echoing the cracked skull mark without reproducing it */
-  clip-path: polygon(50% 0%, 100% 28%, 82% 100%, 18% 100%, 0% 28%);
+/* Source is 362x70; height-constrained so the wordmark stays crisp and the
+   bar keeps its 56px rhythm. */
+.brand-logo {
+  height: 30px;
+  width: auto;
+  display: block;
 }
-
-.brand-name {
-  font-weight: 800;
-  letter-spacing: .14em;
-  font-size: 15px;
-}
-.brand-name-alt { color: var(--accent-hot); }
 
 .tabs { display: flex; gap: 4px; }
 

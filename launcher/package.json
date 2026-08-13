@@ -35,15 +35,19 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
-      "icon": "assets/icon.ico"
+      "icon": "assets/logo.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "HardGamingLauncher.exe"
+      "artifactName": "HardGamingLauncher.exe",
+      "installerIcon": "assets/logo.ico",
+      "uninstallerIcon": "assets/logo.ico"
     }
   }
 }
