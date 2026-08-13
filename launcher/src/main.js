@@ -465,6 +465,39 @@ ipcMain.handle('admin:addMod', async (_e, modId, fileId, displayName) => {
   };
 });
 
+/**
+ * Load a server's published pack back into the builder.
+ *
+ * Editing an existing pack is the normal case: a pack gets one mod added or
+ * one removed far more often than it is assembled from nothing. The published
+ * entries already carry the hash and plugin list, so nothing needs
+ * re-downloading to reopen a pack.
+ */
+ipcMain.handle('admin:loadPack', async (_e, serverId) => {
+  if (!serverId) return { ok: false, error: 'no server chosen' };
+
+  const base = backendUrl().replace(/\/+$/, '');
+  const res = await servers.getJson(
+    `${base}/api/servers/${encodeURIComponent(serverId)}/modlist`,
+    reqOpts()
+  );
+
+  if (!res.ok) {
+    // A server with nothing published yet is an empty pack, not an error
+    if (res.status === 404) return { ok: true, empty: true, mods: [], serverPlugins: [], version: 0 };
+    return { ok: false, error: res.error };
+  }
+
+  const body = res.body || {};
+  return {
+    ok: true,
+    empty: false,
+    version: body.version || 0,
+    mods: Array.isArray(body.mods) ? body.mods : [],
+    serverPlugins: Array.isArray(body.serverPlugins) ? body.serverPlugins : [],
+  };
+});
+
 ipcMain.handle('admin:publish', async (_e, serverId, entries, serverPlugins) => {
   const key = store.get('adminKey');
   if (!key) return { ok: false, error: 'No admin key configured.' };

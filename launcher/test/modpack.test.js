@@ -130,16 +130,16 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'hg-modpack-'));
     console.log('SKIP: backend not running, publish checks skipped');
   } else {
     await httpJson(`${BACKEND}/api/servers/register`, 'POST', {
-      id: 'modpack-test', name: 'Modpack Test', host: '127.0.0.1', port: 7777,
+      id: 'hg-selftest', name: 'HardGaming Self-Test', host: '127.0.0.1', port: 7777,
     }, 'demo-reg');
 
-    const noKey = await modpack.publish(BACKEND, 'modpack-test', '', assembled);
+    const noKey = await modpack.publish(BACKEND, 'hg-selftest', '', assembled);
     check('publishing without an admin key is refused', noKey.ok === false, noKey);
 
-    const wrongKey = await modpack.publish(BACKEND, 'modpack-test', 'nope', assembled);
+    const wrongKey = await modpack.publish(BACKEND, 'hg-selftest', 'nope', assembled);
     check('publishing with a wrong key is refused', wrongKey.ok === false, wrongKey);
 
-    const good = await modpack.publish(BACKEND, 'modpack-test', 'demo-admin', assembled);
+    const good = await modpack.publish(BACKEND, 'hg-selftest', 'demo-admin', assembled);
     check('a well-formed modpack is accepted by the real backend', good.ok, good);
     check('...and comes back with a version', typeof good.version === 'number', good);
 
@@ -149,7 +149,7 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'hg-modpack-'));
       loadOrder: ['PrettyTrees.esp', 'CoolMod.esp', 'CoolMod - Patch.esl'],
       serverPlugins: ['CoolMod.esp'],
     };
-    const rejected = await modpack.publish(BACKEND, 'modpack-test', 'demo-admin', broken);
+    const rejected = await modpack.publish(BACKEND, 'hg-selftest', 'demo-admin', broken);
     check('a modpack breaking the prefix rule is rejected', rejected.ok === false, rejected);
     check('...with the reason surfaced for the admin',
       JSON.stringify(rejected.details || '').includes('prefix'), rejected.details);

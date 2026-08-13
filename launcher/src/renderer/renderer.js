@@ -145,17 +145,19 @@ async function openSheet(server) {
   showProblems([]);
   currentModpack = null;
 
-  const pack = await window.hg.fetchModpack(server.host, server.port);
-  if (pack.ok) {
-    currentModpack = pack.modpack;
-    const mods = (pack.modpack.mods || []).length;
-    $('sheet-modpack').textContent = `${mods} mod${mods === 1 ? '' : 's'} (v${pack.modpack.version})`;
-  } else if (pack.notPublished) {
+  // Named to avoid shadowing the builder's own `pack`, which is a different
+  // thing entirely and would be a nasty bug to track down.
+  const packRes = await window.hg.fetchModpack(server.host, server.port);
+  if (packRes.ok) {
+    currentModpack = packRes.modpack;
+    const mods = (packRes.modpack.mods || []).length;
+    $('sheet-modpack').textContent = `${mods} mod${mods === 1 ? '' : 's'} (v${packRes.modpack.version})`;
+  } else if (packRes.notPublished) {
     $('sheet-modpack').textContent = 'none published';
     $('sheet-note').textContent = 'This server has no modpack, so vanilla Skyrim is all you need.';
   } else {
     $('sheet-modpack').textContent = 'unavailable';
-    $('sheet-note').textContent = `Could not read the modpack: ${pack.error}`;
+    $('sheet-note').textContent = `Could not read the modpack: ${packRes.error}`;
   }
 
   await refreshPlayState();
@@ -470,6 +472,7 @@ const adminError = (msg) => {
 };
 
 function renderPack() {
+  $('btn-admin-publish').textContent = packDirty ? 'Publish changes' : 'Publish';
   const ul = $('admin-list');
   ul.textContent = '';
   $('admin-empty').hidden = pack.length > 0;
@@ -498,6 +501,7 @@ function renderPack() {
     up.disabled = index === 0;
     up.title = 'Move earlier in the load order';
     up.addEventListener('click', () => {
+      packDirty = true;
       [pack[index - 1], pack[index]] = [pack[index], pack[index - 1]];
       renderPack();
     });
@@ -507,6 +511,7 @@ function renderPack() {
     down.disabled = index === pack.length - 1;
     down.title = 'Move later in the load order';
     down.addEventListener('click', () => {
+      packDirty = true;
       [pack[index + 1], pack[index]] = [pack[index], pack[index + 1]];
       renderPack();
     });
@@ -515,6 +520,7 @@ function renderPack() {
     remove.textContent = '×';
     remove.title = 'Remove from the pack';
     remove.addEventListener('click', () => {
+      packDirty = true;
       for (const p of pack[index].plugins) serverPlugins.delete(p);
       pack.splice(index, 1);
       renderPack();
@@ -534,6 +540,7 @@ function renderPack() {
         box.type = 'checkbox';
         box.checked = serverPlugins.has(plugin);
         box.addEventListener('change', () => {
+          packDirty = true;
           if (box.checked) serverPlugins.add(plugin);
           else serverPlugins.delete(plugin);
           renderPack();
@@ -614,6 +621,7 @@ async function addFile(mod, file) {
     } else {
       pack.push(res.entry);
     }
+    packDirty = true;
     renderPack();
   } finally {
     $('admin-progress').hidden = true;
@@ -670,6 +678,41 @@ $('btn-admin-publish').addEventListener('click', async () => {
   }
 });
 
+let packDirty = false;
+let loadedFrom = null;
+
+/** Pull the server's published pack into the builder so it can be edited. */
+async function loadPack(serverId, { confirmDiscard = true } = {}) {
+  if (!serverId) return;
+
+  // Losing a half-built pack to a dropdown change would be maddening
+  if (confirmDiscard && packDirty && pack.length) {
+    const proceed = window.confirm(
+      'You have unpublished changes. Loading this server\'s pack will discard them. Continue?'
+    );
+    if (!proceed) {
+      $('admin-server').value = loadedFrom || serverId;
+      return;
+    }
+  }
+
+  adminError('');
+  adminSuccess('');
+
+  const res = await window.hg.adminLoadPack(serverId);
+  if (!res.ok) return adminError(`Could not load the current pack: ${res.error}`);
+
+  pack = res.mods;
+  serverPlugins = new Set(res.serverPlugins);
+  packDirty = false;
+  loadedFrom = serverId;
+  renderPack();
+
+  $('admin-hint').textContent = res.empty
+    ? 'This server has no published pack yet. Add mods to start one.'
+    : `Editing published version ${res.version}: ${pack.length} mod(s), ${serverPlugins.size} loaded by the server. Publishing replaces it.`;
+}
+
 async function renderAdmin() {
   const status = await window.hg.adminStatus();
   $('tab-admin').hidden = !status.enabled;
@@ -686,7 +729,16 @@ async function renderAdmin() {
     select.appendChild(option);
   }
   if (chosen) select.value = chosen;
+
+  // Open on whatever is already published rather than a blank slate, since
+  // editing an existing pack is the normal case
+  if (select.value && loadedFrom !== select.value) {
+    await loadPack(select.value, { confirmDiscard: false });
+  }
 }
+
+$('admin-server').addEventListener('change', (e) => loadPack(e.target.value));
+$('btn-admin-reload').addEventListener('click', () => loadPack($('admin-server').value));
 
 $('btn-admin-key').addEventListener('click', async () => {
   await window.hg.adminSetKey($('setting-admin-key').value);

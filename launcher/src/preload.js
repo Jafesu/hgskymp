@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('hg', {
   adminSetKey: (key) => ipcRenderer.invoke('admin:setKey', key),
   adminResolveMod: (ref) => ipcRenderer.invoke('admin:resolveMod', ref),
   adminAddMod: (modId, fileId, name) => ipcRenderer.invoke('admin:addMod', modId, fileId, name),
+  adminLoadPack: (serverId) => ipcRenderer.invoke('admin:loadPack', serverId),
   adminPublish: (serverId, entries, serverPlugins) =>
     ipcRenderer.invoke('admin:publish', serverId, entries, serverPlugins),
 
