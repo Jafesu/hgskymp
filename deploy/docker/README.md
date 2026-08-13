@@ -127,6 +127,28 @@ into the file is preserved.
 (or 3000 for the default 7777), which no orchestrator handing out arbitrary
 allocations can guarantee is free.
 
+### Getting listed in the launcher
+
+Set these and the server registers itself with the platform backend and caches
+its published modpack into `data/modpack.json`, which the http port serves.
+
+| Variable | Purpose |
+| --- | --- |
+| `PLATFORM_URL` | Backend to register with. Blank leaves the server unlisted |
+| `PLATFORM_SERVER_ID` | Stable id the server is listed under |
+| `PLATFORM_REGISTRATION_KEY` | Bearer secret the backend requires |
+| `PLATFORM_PUBLIC_HOST` | Address players connect to. **Required** with `PLATFORM_URL` |
+| `PLATFORM_PUBLIC_PORT` | Only when it differs from the game port |
+| `SERVER_DESCRIPTION` | One-line blurb for the list entry |
+
+`PLATFORM_PUBLIC_HOST` is mandatory rather than inferred because the server
+sees a bind address, not the NAT or DNS in front of it. Setting `PLATFORM_URL`
+without it aborts the boot rather than listing an address nobody can reach.
+
+The http port also serves an unauthenticated `/api/status` returning name,
+players and maxPlayers, so a launcher can poll a server directly whether or not
+it is listed.
+
 ## Gamemode
 
 Two shapes are supported:

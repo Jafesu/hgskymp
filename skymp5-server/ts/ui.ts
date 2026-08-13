@@ -14,6 +14,20 @@ let gScampServer: any = null;
 
 let metricsAuth: { user: string; password: string } | null = null;
 
+// Advertised on the unauthenticated /api/status so a launcher can poll a
+// server directly, without a registry in between. Nothing here is sensitive:
+// it is the same information a server publishes to be listed at all.
+let publicInfo: { name: string; maxPlayers: number } = { name: "", maxPlayers: 0 };
+
+const countOnlinePlayers = (): number => {
+  try {
+    return gScampServer.get(0, "onlinePlayers").length;
+  } catch {
+    // Before the world is ready, or if the binding is unavailable
+    return 0;
+  }
+};
+
 const metricsAuthParse = (settings: Settings): void => {
   const authConfig = settings.allSettings?.metricsAuth as { user?: string; password?: string } | undefined;
   if (!authConfig) {
@@ -48,6 +62,16 @@ const createApp = (getOriginPort: () => number) => {
   router.get(new RegExp("/scripts/.*"), (ctx: any) => ctx.throw(403));
   router.get(new RegExp("\.es[mpl]"), (ctx: any) => ctx.throw(403));
   router.get(new RegExp("\.bsa"), (ctx: any) => ctx.throw(403));
+
+  // Unauthenticated on purpose: a launcher polls this to show a server's live
+  // state, and to decide whether it is up at all. Metrics stay behind auth.
+  router.get("/api/status", (ctx: any) => {
+    ctx.body = {
+      name: publicInfo.name,
+      players: countOnlinePlayers(),
+      maxPlayers: publicInfo.maxPlayers,
+    };
+  });
 
   router.post("/rpc/:rpcClassName", (ctx: any) => {
     const { rpcClassName } = ctx.params;
@@ -120,6 +144,7 @@ export const resolveUiPort = (settings: Settings): number => {
 
 export const main = (settings: Settings): void => {
   metricsAuthParse(settings);
+  publicInfo = { name: settings.name, maxPlayers: settings.maxPlayers };
   const devServerPort = 1234;
 
   const uiListenHost = settings.allSettings.uiListenHost as (string | undefined);

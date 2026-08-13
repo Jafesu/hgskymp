@@ -11,7 +11,14 @@ interface ManifestModEntry {
 
 interface Manifest {
   versionMajor: number;
+  // Plugins only, in load order. The client builds its comparison list from
+  // Game.getModCount/getModName, which enumerates plugins and nothing else,
+  // and loadOrderVerificationService compares the two index by index. Anything
+  // in here that the client cannot enumerate shifts every later index and
+  // blocks every player with an error that points nowhere near the cause.
   mods: Array<ManifestModEntry>;
+  // Archives found beside those plugins, kept separate for the same reason.
+  archives: Array<ManifestModEntry>;
   loadOrder: Array<string>;
 }
 
@@ -26,6 +33,7 @@ const getBsaNameByEspmName = (espmName: string) => {
 export const generateManifest = (settings: Settings): void => {
   const manifest: Manifest = {
     mods: [],
+    archives: [],
     versionMajor: 1,
     loadOrder: settings.loadOrder.map(x => path.basename(x)),
   };
@@ -50,7 +58,7 @@ export const generateManifest = (settings: Settings): void => {
     const bsaPath = path.join(settings.dataDir, bsaName);
     if (fs.existsSync(bsaPath)) {
       const buf: Uint8Array = fs.readFileSync(bsaPath);
-      manifest.mods.push({
+      manifest.archives.push({
         crc32: crc32.buf(buf),
         filename: bsaName,
         size: buf.length,

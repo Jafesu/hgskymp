@@ -18,6 +18,7 @@ import * as scampNative from "./scampNative";
 import { Settings } from "./settings";
 import { System } from "./systems/system";
 import { MasterClient } from "./systems/masterClient";
+import { PlatformClient } from "./systems/platformClient";
 import { Spawn } from "./systems/spawn";
 import { Login } from "./systems/login";
 import { DiscordBanSystem } from "./systems/discordBanSystem";
@@ -185,7 +186,7 @@ const setupGamemode = (server: any, gamemodePath: string) => {
 const main = async () => {
   const settingsObject = await Settings.get();
   const {
-    port, master, maxPlayers, name, masterKey, offlineMode, gamemodePath
+    port, master, maxPlayers, name, masterKey, offlineMode, gamemodePath, platform, dataDir
   } = settingsObject;
 
   const log = console.log;
@@ -193,6 +194,7 @@ const main = async () => {
   systems.push(
     new MetricsSystem(),
     new MasterClient(log, port, master, maxPlayers, name, masterKey, 5000, offlineMode),
+    new PlatformClient(log, platform ?? {}, dataDir, name, maxPlayers, port),
     new Spawn(log),
     new Login(log, maxPlayers, master, port, masterKey, offlineMode),
     new DiscordBanSystem(),

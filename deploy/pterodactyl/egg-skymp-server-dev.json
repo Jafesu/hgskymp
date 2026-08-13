@@ -127,6 +127,66 @@
             "user_editable": true,
             "rules": "required|string|in:english,russian,german,french,spanish,italian,polish,chinese,japanese",
             "field_type": "text"
+        },
+        {
+            "name": "Platform API URL",
+            "description": "Backend this server registers with, so it appears in the launcher list. Leave blank for an unlisted server.",
+            "env_variable": "PLATFORM_URL",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": false,
+            "rules": "nullable|string|max:255",
+            "field_type": "text"
+        },
+        {
+            "name": "Platform server id",
+            "description": "Stable id this server is listed under. 2-64 chars: lowercase letters, digits, dash or underscore.",
+            "env_variable": "PLATFORM_SERVER_ID",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": false,
+            "rules": "nullable|string|max:64",
+            "field_type": "text"
+        },
+        {
+            "name": "Platform registration key",
+            "description": "Bearer secret the backend requires to register. Shared across servers on the same backend.",
+            "env_variable": "PLATFORM_REGISTRATION_KEY",
+            "default_value": "",
+            "user_viewable": false,
+            "user_editable": false,
+            "rules": "nullable|string|max:255",
+            "field_type": "text"
+        },
+        {
+            "name": "Public host",
+            "description": "Address players connect to. Required when the platform URL is set: the server sees a bind address, not the NAT or DNS in front of it, so it cannot infer this.",
+            "env_variable": "PLATFORM_PUBLIC_HOST",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string|max:255",
+            "field_type": "text"
+        },
+        {
+            "name": "Public port",
+            "description": "Port players connect to, when it differs from the allocated game port.",
+            "env_variable": "PLATFORM_PUBLIC_PORT",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|integer|between:1,65535",
+            "field_type": "text"
+        },
+        {
+            "name": "Server description",
+            "description": "One-line blurb shown beside the server in the launcher list.",
+            "env_variable": "SERVER_DESCRIPTION",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string|max:280",
+            "field_type": "text"
         }
     ]
 }

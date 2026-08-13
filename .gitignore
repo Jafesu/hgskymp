@@ -14,3 +14,6 @@ skyrim_data_files/
 skymp5-backend/data/
 skymp5-backend/node_modules/
 skymp5-backend/package-lock.json
+
+# npm artifacts in yarn-managed projects
+skymp5-server/package-lock.json

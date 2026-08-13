@@ -17,6 +17,16 @@ export interface DiscordAuthSettings {
   guilds: DiscordGuildConfig[];
 }
 
+export interface PlatformSettings {
+  url?: string;
+  serverId?: string;
+  registrationKey?: string;
+  publicHost?: string;
+  publicPort?: number;
+  description?: string;
+  heartbeatIntervalMs?: number;
+}
+
 export class Settings {
   masterKey: string | null = null;
   port = 7777;
@@ -35,6 +45,7 @@ export class Settings {
     },
   ];
   discordAuth: DiscordAuthSettings | null = null;
+  platform: PlatformSettings | null = null;
 
   allSettings: Record<string, unknown> | null = null;
 
@@ -72,8 +83,11 @@ export class Settings {
       'startPoints',
       'offlineMode',
       'discordAuth',
+      'platform',
     ].forEach((prop) => {
-      if (settings[prop]) {
+      // !== undefined, not truthiness: a falsy override such as false or 0 is
+      // a legitimate value and must not fall back to the default
+      if (settings[prop] !== undefined) {
         (this as Record<string, unknown>)[prop] = settings[prop];
       }
     });

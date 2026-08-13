@@ -104,6 +104,44 @@ for (const [envKey, settingKey, coerce] of MAPPINGS) {
   applied.push(`${settingKey}=${secret ? '***' : JSON.stringify(settings[settingKey])}`);
 }
 
+// Platform registration is a nested object, so it is built separately rather
+// than bent into the flat mapping above. Only keys whose variable is set are
+// touched, so hand edits to the rest of the block survive.
+const PLATFORM_MAPPINGS = [
+  ['PLATFORM_URL', 'url', asString],
+  ['PLATFORM_SERVER_ID', 'serverId', asString],
+  ['PLATFORM_REGISTRATION_KEY', 'registrationKey', asString],
+  ['PLATFORM_PUBLIC_HOST', 'publicHost', asString],
+  ['PLATFORM_PUBLIC_PORT', 'publicPort', asPort],
+  ['SERVER_DESCRIPTION', 'description', asString],
+  ['PLATFORM_HEARTBEAT_MS', 'heartbeatIntervalMs', asInt],
+];
+
+const platformApplied = [];
+for (const [envKey, settingKey, coerce] of PLATFORM_MAPPINGS) {
+  const raw = process.env[envKey];
+  if (raw === undefined || raw === '') continue;
+
+  if (!settings.platform || typeof settings.platform !== 'object') settings.platform = {};
+  try {
+    settings.platform[settingKey] = coerce(raw, envKey);
+  } catch (err) {
+    console.error(`[settings] ${err.message}`);
+    process.exit(1);
+  }
+  const secret = /KEY|TOKEN/.test(envKey);
+  platformApplied.push(`platform.${settingKey}=${secret ? '***' : JSON.stringify(settings.platform[settingKey])}`);
+}
+if (platformApplied.length) applied.push(...platformApplied);
+
+// A server that registers without a reachable address lists itself as
+// unjoinable. It cannot infer this: it sees a bind address, not the NAT or DNS
+// in front of it.
+if (settings.platform && settings.platform.url && !settings.platform.publicHost) {
+  console.error('[settings] PLATFORM_URL is set but PLATFORM_PUBLIC_HOST is not; the server would list an address nobody can reach');
+  process.exit(1);
+}
+
 // Required by the addon, and there is no sensible way for it to guess
 if (settings.dataDir === undefined) settings.dataDir = 'data';
 if (settings.gamemodePath === undefined) settings.gamemodePath = 'gamemode.js';
