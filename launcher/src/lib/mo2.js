@@ -131,20 +131,83 @@ function get7za() {
   return path7za.replace('app.asar', 'app.asar.unpacked');
 }
 
+/**
+ * Identify an archive by its first bytes rather than its name.
+ *
+ * Nexus filenames are not reliable indicators, and the download is stored under
+ * an id anyway, so the content is the only thing worth trusting.
+ */
+function archiveKind(archivePath) {
+  let head;
+  try {
+    const fd = fs.openSync(archivePath, 'r');
+    head = Buffer.alloc(8);
+    fs.readSync(fd, head, 0, 8, 0);
+    fs.closeSync(fd);
+  } catch {
+    return 'unknown';
+  }
+
+  if (head.slice(0, 4).toString('binary') === 'Rar!') return 'rar';
+  if (head.slice(0, 6).toString('hex') === '377abcaf271c') return '7z';
+  if (head.slice(0, 2).toString('binary') === 'PK') return 'zip';
+  return 'unknown';
+}
+
+/** Extract a RAR, which the bundled 7za cannot do: it has no RAR codec. */
+async function extractRar(archivePath, destDir) {
+  const { createExtractorFromData } = require('node-unrar-js');
+  const data = Uint8Array.from(fs.readFileSync(archivePath));
+  const extractor = await createExtractorFromData({ data });
+
+  const extracted = extractor.extract({});
+  // The files are lazy: iterating is what actually decompresses them
+  for (const file of extracted.files) {
+    if (!file.fileHeader || file.fileHeader.flags.directory) continue;
+
+    // Archive paths are attacker-controlled, so a traversing entry must not be
+    // able to write outside the destination.
+    const target = path.resolve(destDir, file.fileHeader.name);
+    if (!target.startsWith(path.resolve(destDir) + path.sep)) {
+      throw new Error(`archive entry tried to escape: ${file.fileHeader.name}`);
+    }
+
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    if (file.extraction) fs.writeFileSync(target, Buffer.from(file.extraction));
+  }
+}
+
 /** Extract an archive. Resolves {ok, error}. */
-function extract(archivePath, destDir) {
+async function extract(archivePath, destDir) {
+  fs.mkdirSync(destDir, { recursive: true });
+
+  if (archiveKind(archivePath) === 'rar') {
+    try {
+      await extractRar(archivePath, destDir);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: `could not extract the RAR archive: ${err.message}` };
+    }
+  }
+
   return new Promise((resolve) => {
     const { execFile } = require('child_process');
-    fs.mkdirSync(destDir, { recursive: true });
-
-    // -y assume yes, -bso0 silence normal output, -bse1 keep errors on stderr
+    // Deliberately not -bso0. 7za reports most failures on stdout, so
+    // silencing it leaves nothing but "Command failed" plus the command line,
+    // which says nothing about the cause.
     execFile(
       get7za(),
-      ['x', archivePath, `-o${destDir}`, '-y', '-bso0', '-bse1'],
+      ['x', archivePath, `-o${destDir}`, '-y', '-bse1'],
       { maxBuffer: 8 * 1024 * 1024, windowsHide: true },
-      (err, _stdout, stderr) => {
+      (err, stdout, stderr) => {
         if (err) {
-          return resolve({ ok: false, error: (stderr || err.message || '').trim() || 'extraction failed' });
+          const fromStdout = String(stdout || '')
+            .split(/\r?\n/)
+            .filter((line) => /^ERROR/i.test(line.trim()))
+            .join('; ');
+          const detail =
+            String(stderr || '').trim() || fromStdout.trim() || String(err.message || '').trim();
+          return resolve({ ok: false, error: detail || 'extraction failed' });
         }
         resolve({ ok: true });
       }
@@ -336,6 +399,7 @@ module.exports = {
   isInstalled,
   download,
   extract,
+  archiveKind,
   ensureInstalled,
   findExeDir,
   buildInstanceIni,

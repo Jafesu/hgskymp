@@ -596,11 +596,36 @@ async function addFile(mod, file) {
   }
 }
 
+const adminSuccess = (msg) => {
+  const el = $('admin-success');
+  if (!msg) {
+    el.hidden = true;
+    return;
+  }
+  el.textContent = msg;
+  el.hidden = false;
+};
+
 $('btn-admin-publish').addEventListener('click', async () => {
   adminError('');
+  adminSuccess('');
   if (!pack.length) return adminError('Add at least one mod first.');
 
   const serverId = $('admin-server').value;
+  if (!serverId) return adminError('Choose a server to publish to.');
+
+  // A pack with nothing marked server-side is legal but almost never intended:
+  // the server would load none of it, so its records do not exist server-side
+  // and the mods are cosmetic only.
+  if (serverPlugins.size === 0) {
+    const proceed = window.confirm(
+      'No plugins are marked for the server to load.\n\n' +
+        'The server will not load any of this pack, so anything these mods add ' +
+        '(items, NPCs, cells) will not exist server-side. Publish anyway?'
+    );
+    if (!proceed) return;
+  }
+
   const btn = $('btn-admin-publish');
   btn.disabled = true;
   try {
@@ -611,7 +636,11 @@ $('btn-admin-publish').addEventListener('click', async () => {
       const detail = (res.details || []).join(' ');
       return adminError(`${res.error}${detail ? ` — ${detail}` : ''}`);
     }
-    $('admin-hint').textContent = `Published version ${res.version} to ${serverId}.`;
+    adminSuccess(
+      `Published version ${res.version} to ${serverId}: ${pack.length} mod(s), ` +
+        `${serverPlugins.size} loaded by the server. ` +
+        `The server picks it up on its next check; it does not need to be online now.`
+    );
   } finally {
     btn.disabled = false;
   }

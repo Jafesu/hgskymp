@@ -49,6 +49,26 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'hg-mo2-'));
 
   const missing = await mo2.extract(path.join(tmp, 'does-not-exist.7z'), path.join(tmp, 'nope'));
   check('a missing archive fails rather than throwing', missing.ok === false, missing);
+  check('...and says why, rather than echoing the command line',
+    !/^Command failed/.test(missing.error), missing.error);
+
+  // ── archive identification ────────────────────────────────────────────────
+  // Nexus filenames are unreliable and downloads are stored under an id, so
+  // the content is the only trustworthy signal. Getting this wrong sends a RAR
+  // to 7za, which has no RAR codec and fails with nothing useful.
+  check('7z identified by content', mo2.archiveKind(archive) === '7z', mo2.archiveKind(archive));
+
+  const zip = path.join(tmp, 'plain.zip');
+  execFileSync(path7za, ['a', '-tzip', zip, path.join(src, 'ModOrganizer.exe'), '-bso0', '-bse0'], { windowsHide: true });
+  check('zip identified by content', mo2.archiveKind(zip) === 'zip', mo2.archiveKind(zip));
+
+  const fakeRar = path.join(tmp, 'fake.bin');
+  fs.writeFileSync(fakeRar, Buffer.concat([Buffer.from('Rar!\x1a\x07\x01\x00', 'binary'), Buffer.alloc(8)]));
+  check('rar identified by content, whatever the extension', mo2.archiveKind(fakeRar) === 'rar');
+
+  fs.writeFileSync(path.join(tmp, 'junk.bin'), 'not an archive at all');
+  check('unrecognised content reports unknown', mo2.archiveKind(path.join(tmp, 'junk.bin')) === 'unknown');
+  check('a missing file reports unknown', mo2.archiveKind(path.join(tmp, 'absent')) === 'unknown');
 
   check('findExeDir returns null when there is no exe',
     mo2.findExeDir(path.join(tmp, 'src', 'Mod.Organizer-2.5.2', 'plugins')) === null);

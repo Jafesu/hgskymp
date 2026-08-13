@@ -329,3 +329,11 @@ input[type="text"]:focus {
   padding: 8px 12px;
   margin: 0 0 12px;
 }
+
+.success {
+  background: rgba(79,180,119,.12);
+  border: 1px solid var(--ok);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  margin: 0 0 12px;
+}
