@@ -118,6 +118,128 @@ function download(url, dest, onProgress, redirectsLeft = 5) {
   });
 }
 
+// ── extraction ───────────────────────────────────────────────────────────────
+
+/**
+ * Locate 7za.
+ *
+ * electron-builder unpacks native binaries out of the asar at runtime, so the
+ * path inside a packaged app differs from the one during development.
+ */
+function get7za() {
+  const { path7za } = require('7zip-bin');
+  return path7za.replace('app.asar', 'app.asar.unpacked');
+}
+
+/** Extract an archive. Resolves {ok, error}. */
+function extract(archivePath, destDir) {
+  return new Promise((resolve) => {
+    const { execFile } = require('child_process');
+    fs.mkdirSync(destDir, { recursive: true });
+
+    // -y assume yes, -bso0 silence normal output, -bse1 keep errors on stderr
+    execFile(
+      get7za(),
+      ['x', archivePath, `-o${destDir}`, '-y', '-bso0', '-bse1'],
+      { maxBuffer: 8 * 1024 * 1024, windowsHide: true },
+      (err, _stdout, stderr) => {
+        if (err) {
+          return resolve({ ok: false, error: (stderr || err.message || '').trim() || 'extraction failed' });
+        }
+        resolve({ ok: true });
+      }
+    );
+  });
+}
+
+/**
+ * Download and unpack MO2 if it is not already there.
+ *
+ * The archive nests everything under a single directory, so the contents are
+ * lifted up a level to leave ModOrganizer.exe at the instance root.
+ */
+async function ensureInstalled(onProgress = () => {}) {
+  if (isInstalled()) return { ok: true, alreadyInstalled: true };
+
+  const root = getRoot();
+  fs.mkdirSync(root, { recursive: true });
+
+  const archive = path.join(root, `mo2-${MO2_VERSION}.7z`);
+  if (!fs.existsSync(archive)) {
+    onProgress({ phase: 'download', progress: 0 });
+    logger(`downloading MO2 ${MO2_VERSION}`);
+    const dl = await download(MO2_URL, archive, (progress) =>
+      onProgress({ phase: 'download', progress })
+    );
+    if (!dl.ok) return { ok: false, error: `could not download MO2: ${dl.error}` };
+  }
+
+  onProgress({ phase: 'extract', progress: 0 });
+  logger('extracting MO2');
+
+  const staging = path.join(root, '.unpack');
+  try {
+    fs.rmSync(staging, { recursive: true, force: true });
+  } catch {}
+
+  const ex = await extract(archive, staging);
+  if (!ex.ok) return { ok: false, error: `could not extract MO2: ${ex.error}` };
+
+  // The release wraps its contents in one folder; find whichever level holds
+  // the executable rather than assuming the folder's name.
+  const source = findExeDir(staging);
+  if (!source) {
+    return { ok: false, error: 'ModOrganizer.exe was not found in the downloaded archive' };
+  }
+
+  for (const entry of fs.readdirSync(source)) {
+    const from = path.join(source, entry);
+    const to = path.join(root, entry);
+    try {
+      fs.rmSync(to, { recursive: true, force: true });
+    } catch {}
+    fs.renameSync(from, to);
+  }
+
+  try {
+    fs.rmSync(staging, { recursive: true, force: true });
+  } catch {}
+
+  if (!isInstalled()) {
+    return { ok: false, error: 'MO2 unpacked but ModOrganizer.exe is still missing' };
+  }
+
+  // Keeping the archive would double the install's footprint for no benefit
+  try {
+    fs.unlinkSync(archive);
+  } catch {}
+
+  onProgress({ phase: 'done', progress: 1 });
+  logger(`MO2 ${MO2_VERSION} ready at ${root}`);
+  return { ok: true };
+}
+
+/** Directory containing ModOrganizer.exe, searching at most two levels. */
+function findExeDir(dir, depth = 0) {
+  if (depth > 2) return null;
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+
+  if (entries.some((e) => e.isFile() && e.name.toLowerCase() === 'modorganizer.exe')) {
+    return dir;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const found = findExeDir(path.join(dir, entry.name), depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
+
 // ── instance configuration ───────────────────────────────────────────────────
 
 /**
@@ -213,6 +335,9 @@ module.exports = {
   getProfileDir,
   isInstalled,
   download,
+  extract,
+  ensureInstalled,
+  findExeDir,
   buildInstanceIni,
   writeModlist,
   writePlugins,

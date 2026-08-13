@@ -5,6 +5,10 @@ const path = require('path');
 const Store = require('electron-store');
 const config = require('./config');
 const servers = require('./lib/servers');
+const nexus = require('./lib/nexus');
+const pkg = require('../package.json');
+
+nexus.setAppIdentity('HardGamingSkyMPLauncher', pkg.version);
 
 const store = new Store({
   defaults: {
@@ -47,14 +51,92 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
-  createWindow();
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+// ── nxm:// protocol ──────────────────────────────────────────────────────────
+//
+// Clicking "Mod Manager Download" on Nexus hands the browser an nxm:// url.
+// Windows answers it by launching this app again with the url in argv, so a
+// single-instance lock is not an optimisation here: without it every click
+// would start a second copy that the running one never hears about.
+
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  // A copy is already running; it has been handed our argv and will deal with it
+  app.quit();
+} else {
+  app.on('second-instance', (_e, argv) => {
+    handleProtocolArgs(argv);
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.focus();
+    }
   });
+
+  // macOS delivers protocol urls through an event rather than argv
+  app.on('open-url', (event, url) => {
+    event.preventDefault();
+    deliverNxm(url);
+  });
+
+  app.whenReady().then(() => {
+    registerProtocol();
+    createWindow();
+    // A url that launched the app is already sitting in argv
+    handleProtocolArgs(process.argv);
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  });
+
+  app.on('window-all-closed', () => app.quit());
+}
+
+function registerProtocol() {
+  // In development the executable is electron itself, so the registration has
+  // to name the script too or Windows would relaunch a bare Electron.
+  const registered = process.defaultApp && process.argv.length >= 2
+    ? app.setAsDefaultProtocolClient('nxm', process.execPath, [path.resolve(process.argv[1])])
+    : app.setAsDefaultProtocolClient('nxm');
+
+  if (!registered) {
+    console.warn('could not register as the nxm:// handler; free-account downloads will not hand off');
+  }
+  return registered;
+}
+
+function handleProtocolArgs(argv) {
+  const url = (argv || []).find((arg) => typeof arg === 'string' && arg.startsWith('nxm://'));
+  if (url) deliverNxm(url);
+}
+
+// Queued rather than dropped: a click can arrive before the window exists.
+let pendingNxm = [];
+
+function deliverNxm(url) {
+  const parsed = nexus.parseNxmUrl(url);
+  if (!parsed) {
+    console.warn('ignoring a malformed nxm url');
+    return;
+  }
+  if (!parsed.isOurGame) {
+    console.warn(`ignoring an nxm url for ${parsed.game}`);
+    return;
+  }
+
+  if (win && !win.webContents.isLoading()) {
+    win.webContents.send('nxm:download', parsed);
+  } else {
+    pendingNxm.push(parsed);
+  }
+}
+
+ipcMain.handle('nxm:drain', () => {
+  const queued = pendingNxm;
+  pendingNxm = [];
+  return queued;
 });
 
-app.on('window-all-closed', () => app.quit());
+ipcMain.handle('nxm:isRegistered', () => app.isDefaultProtocolClient('nxm'));
 
 // ── IPC ──────────────────────────────────────────────────────────────────────
 
@@ -109,4 +191,36 @@ ipcMain.handle('favourites:toggle', (_e, address) => {
 
 ipcMain.on('open:external', (_e, url) => {
   if (typeof url === 'string' && /^https?:\/\//i.test(url)) shell.openExternal(url);
+});
+
+// ── Nexus account ────────────────────────────────────────────────────────────
+//
+// The key is validated before it is stored, so a typo is reported at sign-in
+// rather than surfacing much later as a failed download.
+
+ipcMain.handle('nexus:signIn', async (_e, apiKey) => {
+  const key = typeof apiKey === 'string' ? apiKey.trim() : '';
+  if (!key) return { ok: false, error: 'Paste your Nexus API key first.' };
+
+  const who = await nexus.validate(key);
+  if (!who.ok) return { ok: false, error: who.error };
+
+  store.set('nexusApiKey', key);
+  store.set('nexusAccount', { name: who.name, premium: who.premium, userId: who.userId });
+  return { ok: true, account: { name: who.name, premium: who.premium } };
+});
+
+ipcMain.handle('nexus:account', () => {
+  const account = store.get('nexusAccount') || null;
+  return {
+    signedIn: !!store.get('nexusApiKey'),
+    account,
+    apiKeyPage: nexus.API_KEY_PAGE,
+  };
+});
+
+ipcMain.handle('nexus:signOut', () => {
+  store.delete('nexusApiKey');
+  store.delete('nexusAccount');
+  return { ok: true };
 });

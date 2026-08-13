@@ -10,10 +10,11 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "test": "node test/backend.test.js && node test/preflight.test.js && node test/nexus.test.js",
+    "test": "node test/backend.test.js && node test/preflight.test.js && node test/nexus.test.js && node test/mo2.test.js",
     "build:win": "electron-builder --win"
   },
   "dependencies": {
+    "7zip-bin": "^5.2.0",
     "electron-store": "^8.2.0"
   },
   "devDependencies": {
