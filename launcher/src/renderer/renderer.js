@@ -174,6 +174,30 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('sheet').hidden) closeSheet();
 });
 
+$('sheet-play').addEventListener('click', async () => {
+  if (!current) return;
+  const btn = $('sheet-play');
+  btn.disabled = true;
+  btn.textContent = 'Starting...';
+  showProblems([]);
+
+  try {
+    const res = await window.hg.launchGame(current);
+    if (!res.ok) {
+      showProblems([{ message: res.error }]);
+      $('sheet-note').textContent = '';
+      return;
+    }
+    // MO2 takes a while to bring the game up, and a launcher that looks idle
+    // invites a second click and a second copy of Skyrim.
+    $('sheet-note').textContent =
+      `Starting Skyrim through Mod Organizer. Connect to ${current.host}:${current.port} from the in-game menu.`;
+  } finally {
+    btn.textContent = 'Play';
+    btn.disabled = false;
+  }
+});
+
 $('sheet-fav').addEventListener('click', async () => {
   if (!current) return;
   const res = await window.hg.toggleFavourite(addressOf(current));

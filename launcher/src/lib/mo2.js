@@ -369,6 +369,108 @@ function writePlugins(loadOrder, profileDir = getProfileDir()) {
   );
 }
 
+/**
+ * Executables MO2 offers to run.
+ *
+ * SkyMP is delivered as a SkyrimPlatform plugin, which is an SKSE plugin, so
+ * the SKSE loader is what has to be launched. Plain SkyrimSE.exe starts the
+ * game with none of it loaded, which looks like the mods silently did nothing.
+ */
+function buildExecutablesIni(gameDir) {
+  const fwd = (p) => String(p).replace(/\\/g, '/');
+  const entries = [];
+
+  const skse = ['skse64_loader.exe', 'sksevr_loader.exe']
+    .map((name) => path.join(gameDir, name))
+    .find((full) => fs.existsSync(full));
+
+  if (skse) {
+    entries.push({ title: 'SKSE', binary: skse });
+  }
+
+  const vanilla = path.join(gameDir, 'SkyrimSE.exe');
+  if (fs.existsSync(vanilla)) {
+    entries.push({ title: 'Skyrim Special Edition', binary: vanilla });
+  }
+
+  const lines = ['[customExecutables]', `size=${entries.length}`];
+  entries.forEach((entry, i) => {
+    const n = i + 1;
+    lines.push(
+      `${n}\\title=${entry.title}`,
+      `${n}\\binary=${fwd(entry.binary)}`,
+      `${n}\\workingDirectory=${fwd(gameDir)}`,
+      `${n}\\arguments=`,
+      `${n}\\toolbar=false`,
+      `${n}\\ownicon=true`,
+      `${n}\\steamAppID=`,
+      `${n}\\hide=false`
+    );
+  });
+  lines.push('');
+
+  return { ini: lines.join('\r\n'), hasSkse: !!skse, titles: entries.map((e) => e.title) };
+}
+
+/**
+ * Write the portable instance so MO2 can be launched unattended.
+ *
+ * Returns whether SKSE was found, because without it the game starts with no
+ * script extender and therefore no SkyMP at all.
+ */
+function ensureInstance(gameDir) {
+  const root = getRoot();
+  fs.mkdirSync(getProfileDir(), { recursive: true });
+  fs.mkdirSync(getModsDir(), { recursive: true });
+  fs.mkdirSync(getDownloadsDir(), { recursive: true });
+  fs.mkdirSync(path.join(root, 'overwrite'), { recursive: true });
+
+  const executables = buildExecutablesIni(gameDir);
+  fs.writeFileSync(
+    path.join(root, 'ModOrganizer.ini'),
+    buildInstanceIni(gameDir, root) + executables.ini
+  );
+
+  // MO2 refuses to use a profile that has no settings file
+  const settings = path.join(getProfileDir(), 'settings.ini');
+  if (!fs.existsSync(settings)) {
+    fs.writeFileSync(
+      settings,
+      ['[General]', 'LocalSaves=false', 'LocalSettings=true', 'AutomaticArchiveInvalidation=false', ''].join('\r\n')
+    );
+  }
+
+  return { ok: true, hasSkse: executables.hasSkse, titles: executables.titles };
+}
+
+/**
+ * Start the game through MO2 so its virtual filesystem is active.
+ *
+ * Launching the game directly would bypass the overlay entirely: every mod is
+ * staged in the instance rather than copied into Data, so the game would start
+ * completely vanilla and the player would be refused for having no plugins.
+ */
+function launch(executableTitle) {
+  return new Promise((resolve) => {
+    if (!isInstalled()) return resolve({ ok: false, error: 'Mod Organizer is not set up yet.' });
+
+    const { spawn } = require('child_process');
+    try {
+      const child = spawn(
+        getExe(),
+        ['-p', PROFILE, `moshortcut://:${executableTitle}`],
+        { cwd: getRoot(), detached: true, stdio: 'ignore', windowsHide: false }
+      );
+      // Detached so closing the launcher does not take the game with it
+      child.unref();
+      child.on('error', (err) => resolve({ ok: false, error: err.message }));
+      setTimeout(() => resolve({ ok: true }), 400);
+    } catch (err) {
+      resolve({ ok: false, error: err.message });
+    }
+  });
+}
+
 /** The plugin order currently written to the profile, active entries only. */
 function readActivePlugins(profileDir = getProfileDir()) {
   let raw;
@@ -403,6 +505,9 @@ module.exports = {
   ensureInstalled,
   findExeDir,
   buildInstanceIni,
+  buildExecutablesIni,
+  ensureInstance,
+  launch,
   writeModlist,
   writePlugins,
   readActivePlugins,

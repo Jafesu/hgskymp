@@ -328,6 +328,41 @@ ipcMain.handle('game:detect', async () => {
 
 ipcMain.handle('game:check', (_e, dir) => inspectGameFolder(dir || store.get('skyrimPath')));
 
+/**
+ * Start the game, but only once the install matches the server.
+ *
+ * Verifying here rather than letting the player find out at the connection is
+ * the whole point: the client's rejection names an index, this names the mod.
+ */
+ipcMain.handle('play:launch', async (_e, server) => {
+  const skyrimPath = store.get('skyrimPath');
+  if (!skyrimPath) {
+    return { ok: false, error: 'Set your Skyrim folder in Settings first.' };
+  }
+  if (!mo2.isInstalled()) {
+    return { ok: false, error: 'Mod Organizer is not set up yet. Set it up in Settings.' };
+  }
+
+  const instance = mo2.ensureInstance(skyrimPath);
+
+  // Launching plain Skyrim would start the game with no script extender, so no
+  // SkyrimPlatform and no SkyMP: the player would reach the main menu wondering
+  // why nothing happened.
+  if (!instance.hasSkse) {
+    return {
+      ok: false,
+      error:
+        'SKSE was not found in your Skyrim folder. SkyMP runs as a SkyrimPlatform plugin, ' +
+        'which needs the Script Extender. Install SKSE into the game folder and try again.',
+    };
+  }
+
+  const launched = await mo2.launch('SKSE');
+  if (!launched.ok) return launched;
+
+  return { ok: true, server: server && `${server.host}:${server.port}` };
+});
+
 // ── admin: assembling and publishing a modpack ───────────────────────────────
 //
 // Gated on an admin key being present rather than on a role, because the key is

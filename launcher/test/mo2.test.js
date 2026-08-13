@@ -92,6 +92,44 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'hg-mo2-'));
   check('ensureInstalled does nothing when already installed',
     already.ok && already.alreadyInstalled === true, already);
 
+  // ── instance configuration for launching ──────────────────────────────────
+  const game = path.join(tmp, 'Skyrim Special Edition');
+  fs.mkdirSync(path.join(game, 'Data'), { recursive: true });
+  fs.writeFileSync(path.join(game, 'SkyrimSE.exe'), 'game');
+  fs.writeFileSync(path.join(game, 'Data', 'Skyrim.esm'), 'master');
+
+  // Without SKSE the game starts with no script extender, so no SkyrimPlatform
+  // and no SkyMP: the caller has to be able to tell.
+  let exes = mo2.buildExecutablesIni(game);
+  check('a game folder without SKSE is reported as such', exes.hasSkse === false, exes.titles);
+  check('...but the vanilla executable is still registered',
+    exes.titles.includes('Skyrim Special Edition'), exes.titles);
+
+  fs.writeFileSync(path.join(game, 'skse64_loader.exe'), 'skse');
+  exes = mo2.buildExecutablesIni(game);
+  check('SKSE is found once present', exes.hasSkse === true, exes.titles);
+  check('...and registered first, since it is what must be launched',
+    exes.titles[0] === 'SKSE', exes.titles);
+  check('the executables block is well formed',
+    /\[customExecutables\]/.test(exes.ini) && /1\\title=SKSE/.test(exes.ini), exes.ini.slice(0, 120));
+
+  mo2.setRoot(path.join(tmp, 'launchinst'));
+  const inst = mo2.ensureInstance(game);
+  check('instance written', inst.ok && inst.hasSkse, inst);
+  check('ModOrganizer.ini created', fs.existsSync(path.join(mo2.getRoot(), 'ModOrganizer.ini')));
+  check('profile settings created, which MO2 requires',
+    fs.existsSync(path.join(mo2.getProfileDir(), 'settings.ini')));
+
+  const iniText = fs.readFileSync(path.join(mo2.getRoot(), 'ModOrganizer.ini'), 'utf8');
+  check('the instance points at the chosen game folder',
+    iniText.includes(game.replace(/\\/g, '/')), iniText.split('\n')[2]);
+
+  // Launching without MO2 present must fail rather than silently do nothing
+  mo2.setRoot(path.join(tmp, 'no-mo2'));
+  const noMo2 = await mo2.launch('SKSE');
+  check('launching without Mod Organizer fails clearly',
+    noMo2.ok === false && /not set up/i.test(noMo2.error), noMo2);
+
   // ── downloads refuse plain http ───────────────────────────────────────────
   const insecure = await mo2.download('http://example.com/x.7z', path.join(tmp, 'x.7z'));
   check('plain http download is refused', insecure.ok === false && /non-https/i.test(insecure.error), insecure);

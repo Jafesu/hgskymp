@@ -45,5 +45,6 @@ contextBridge.exposeInMainWorld('hg', {
   installModpack: (modpack) => ipcRenderer.invoke('install:modpack', modpack),
   installFromHandoff: (mod, nxm) => ipcRenderer.invoke('install:fromHandoff', mod, nxm),
   verifyForPlay: (server) => ipcRenderer.invoke('play:verify', server),
+  launchGame: (server) => ipcRenderer.invoke('play:launch', server),
   onInstallProgress: (cb) => ipcRenderer.on('install:progress', (_e, p) => cb(p)),
 });
