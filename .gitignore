@@ -17,3 +17,7 @@ skymp5-backend/package-lock.json
 
 # npm artifacts in yarn-managed projects
 skymp5-server/package-lock.json
+
+# Launcher deps and build output
+launcher/node_modules/
+launcher/package-lock.json

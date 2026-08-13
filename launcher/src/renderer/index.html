@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self' data:; font-src 'self';" />
+  <title>HardGaming Launcher</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">HARD<span class="brand-name-alt">GAMING</span></span>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab is-active" data-view="servers" role="tab">Servers</button>
+      <button class="tab" data-view="settings" role="tab">Settings</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Servers -->
+    <section class="view is-active" id="view-servers">
+      <div class="toolbar">
+        <div class="connect">
+          <input id="direct-address" type="text" spellcheck="false"
+                 placeholder="play.example.com:40027" aria-label="Server address" />
+          <button id="btn-connect" class="btn btn-primary">Connect</button>
+        </div>
+        <div class="toolbar-right">
+          <span id="list-status" class="muted"></span>
+          <button id="btn-refresh" class="btn">Refresh</button>
+        </div>
+      </div>
+
+      <p id="direct-error" class="error" hidden></p>
+
+      <ul id="server-list" class="server-list"></ul>
+      <p id="list-empty" class="empty" hidden>No servers listed yet. Use the address box above to connect directly.</p>
+    </section>
+
+    <!-- Settings -->
+    <section class="view" id="view-settings">
+      <label class="field">
+        <span class="field-label">Backend URL</span>
+        <input id="setting-backend" type="text" spellcheck="false" placeholder="https://api.hardgaming.tech" />
+        <span class="field-hint">Where the server list comes from. Direct connect works without it.</span>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Skyrim Special Edition folder</span>
+        <input id="setting-skyrim" type="text" spellcheck="false" placeholder="C:\Program Files (x86)\Steam\steamapps\common\Skyrim Special Edition" />
+        <span class="field-hint">Used to install mods and launch the game.</span>
+      </label>
+
+      <div class="field-actions">
+        <button id="btn-save-settings" class="btn btn-primary">Save</button>
+        <span id="settings-saved" class="muted" hidden>Saved</span>
+      </div>
+    </section>
+  </main>
+
+  <!-- Server detail -->
+  <div class="sheet" id="sheet" hidden>
+    <div class="sheet-panel" role="dialog" aria-modal="true">
+      <button class="sheet-close" id="sheet-close" aria-label="Close">&times;</button>
+      <h2 id="sheet-name">Server</h2>
+      <p id="sheet-address" class="muted mono"></p>
+      <dl class="stats">
+        <div><dt>Status</dt><dd id="sheet-status">-</dd></div>
+        <div><dt>Players</dt><dd id="sheet-players">-</dd></div>
+        <div><dt>Ping</dt><dd id="sheet-ping">-</dd></div>
+        <div><dt>Modpack</dt><dd id="sheet-modpack">-</dd></div>
+      </dl>
+      <div class="sheet-actions">
+        <button id="sheet-play" class="btn btn-primary btn-lg">Play</button>
+        <button id="sheet-fav" class="btn">Save server</button>
+      </div>
+      <p id="sheet-note" class="muted small"></p>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

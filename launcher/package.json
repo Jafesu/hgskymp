@@ -1,0 +1,49 @@
+{
+  "name": "hardgaming-launcher",
+  "version": "0.1.0",
+  "private": true,
+  "description": "HardGaming launcher for SkyMP servers",
+  "productName": "HardGaming Launcher",
+  "main": "src/main.js",
+  "author": "HardGaming",
+  "license": "AGPL-3.0",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "test": "node test/backend.test.js",
+    "build:win": "electron-builder --win"
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0"
+  },
+  "devDependencies": {
+    "electron": "^41.2.0",
+    "electron-builder": "^26.8.1"
+  },
+  "build": {
+    "appId": "tech.hardgaming.launcher",
+    "productName": "HardGaming Launcher",
+    "directories": {
+      "output": "../build/launcher"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "HardGamingLauncher.exe"
+    }
+  }
+}
