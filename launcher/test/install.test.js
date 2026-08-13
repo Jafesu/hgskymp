@@ -121,8 +121,18 @@ const sha = (f) => crypto.createHash('sha256').update(fs.readFileSync(f)).digest
   let out = await install.installModpack({ modpack, modsDir, downloadsDir, resolveDownload: resolver });
   check('a full modpack installs', out.ok, out);
   check('both mods installed', out.installed.length === 2, out);
-  check('the profile load order is written',
-    mo2.readActivePlugins().join(',') === 'Skyrim.esm,ModA.esp,ModB.esp', mo2.readActivePlugins());
+
+  // plugins.txt is the game's real load order, so it must start with the
+  // masters even though a modpack only lists what it adds. Without them the
+  // game loads nothing, and every index the client compares is shifted.
+  check('the masters lead the written load order',
+    mo2.readActivePlugins().slice(0, 5).join(',') ===
+      'Skyrim.esm,Update.esm,Dawnguard.esm,HearthFires.esm,Dragonborn.esm',
+    mo2.readActivePlugins());
+  check('...with the pack following in order',
+    mo2.readActivePlugins().slice(5).join(',') === 'ModA.esp,ModB.esp', mo2.readActivePlugins());
+  check('...and no master duplicated when the pack already names one',
+    install.withMasters(['Skyrim.esm', 'X.esp']).filter((p) => p === 'Skyrim.esm').length === 1);
 
   // Second run should do nothing
   out = await install.installModpack({ modpack, modsDir, downloadsDir, resolveDownload: resolver });

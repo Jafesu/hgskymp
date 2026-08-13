@@ -110,6 +110,31 @@ async function installArchive(archivePath, modsDir, modName, meta = {}) {
   return { ok: true, dir };
 }
 
+// Skyrim always loads these first, in this order.
+const VANILLA_MASTERS = [
+  'Skyrim.esm',
+  'Update.esm',
+  'Dawnguard.esm',
+  'HearthFires.esm',
+  'Dragonborn.esm',
+];
+
+/**
+ * Put the masters at the front of a load order.
+ *
+ * A modpack lists only the mods it adds, but plugins.txt is the game's actual
+ * load order and has to start with the masters. Writing it without them leaves
+ * the game unable to load anything, and makes the client's comparison start at
+ * the wrong plugin: the server's manifest always begins with the masters, so
+ * every index would be shifted.
+ */
+function withMasters(loadOrder) {
+  const rest = (loadOrder || []).filter(
+    (p) => !VANILLA_MASTERS.some((m) => m.toLowerCase() === String(p).toLowerCase())
+  );
+  return [...VANILLA_MASTERS, ...rest];
+}
+
 const DATA_FOLDERS = new Set([
   'meshes', 'textures', 'scripts', 'sound', 'interface', 'seq', 'grass',
   'lodsettings', 'music', 'shadersfx', 'strings', 'video', 'skse', 'source',
@@ -222,7 +247,7 @@ async function installModpack({ modpack, modsDir, downloadsDir, resolveDownload,
   if (complete) {
     const order = mods.map((m) => safeModName(m.name || m.fileName));
     mo2.writeModlist(order);
-    mo2.writePlugins(modpack.loadOrder || []);
+    mo2.writePlugins(withMasters(modpack.loadOrder || []));
   }
 
   onProgress({ phase: 'done' });
@@ -275,6 +300,8 @@ function collectInstalledPlugins(loadOrder, modsDir, gameDataDir) {
 module.exports = {
   STAMP,
   sha256File,
+  VANILLA_MASTERS,
+  withMasters,
   resolvePluginPath,
   collectInstalledPlugins,
   safeModName,

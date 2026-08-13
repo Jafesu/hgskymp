@@ -621,6 +621,13 @@ async function addFile(mod, file) {
     } else {
       pack.push(res.entry);
     }
+
+    // Server-side by default. A mod that ships a plugin is changing records the
+    // server owns: items, actors, cells, recipes, effects. Purely cosmetic mods
+    // usually ship no plugin at all, so defaulting to off produced the wrong
+    // answer for nearly every mod and did it silently.
+    for (const plugin of res.entry.plugins) serverPlugins.add(plugin);
+
     packDirty = true;
     renderPack();
   } finally {
