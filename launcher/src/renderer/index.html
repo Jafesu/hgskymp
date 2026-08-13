@@ -5,13 +5,17 @@
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self' data:; font-src 'self';" />
   <title>HardGaming SkyMP Launcher</title>
-  <link rel="icon" href="../../assets/favicon.png" />
+  <!-- No <link rel="icon">: Electron takes the window icon from BrowserWindow,
+       so a favicon here would decode a large image for nothing. -->
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
-      <img class="brand-logo" src="../../assets/logo.png" alt="HardGaming SkyMP" />
+      <img class="brand-logo"
+           src="../../assets/logo.png"
+           srcset="../../assets/logo.png 1x, ../../assets/logo-hi.png 2x"
+           alt="HardGaming SkyMP" />
     </div>
     <nav class="tabs" role="tablist">
       <button class="tab is-active" data-view="servers" role="tab">Servers</button>

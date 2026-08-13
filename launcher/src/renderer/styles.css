@@ -37,7 +37,7 @@ body { display: flex; flex-direction: column; }
   align-items: center;
   gap: 32px;
   padding: 0 20px;
-  height: 56px;
+  height: 76px;
   background: var(--bg-raised);
   border-bottom: 1px solid var(--line);
   flex: none;
@@ -45,11 +45,11 @@ body { display: flex; flex-direction: column; }
 
 .brand { display: flex; align-items: center; }
 
-/* The mark stacks HARDGAMING over SKYMP at roughly 3:1, so it needs more
-   height than a single-line wordmark to stay readable. Height-constrained,
-   leaving breathing room inside the 56px bar. */
+/* The mark stacks HARDGAMING over SKYMP, so the second line sets the floor for
+   legibility rather than the overall width. Sized against the 76px bar, with
+   logo-hi served at 2x so it stays sharp on high-DPI displays. */
 .brand-logo {
-  height: 38px;
+  height: 52px;
   width: auto;
   display: block;
 }
