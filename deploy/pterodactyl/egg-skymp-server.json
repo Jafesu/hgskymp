@@ -1,20 +1,20 @@
 {
-    "_comment": "HardGaming SkyRP game server. Bring your own Skyrim Special Edition .esm files: upload them to data/ via the file manager or SFTP before starting.",
+    "_comment": "HardGaming SkyMP game server. Bring your own Skyrim Special Edition .esm files: upload them to data/ via the file manager or SFTP before starting.",
     "meta": {
         "version": "PTDL_v2",
         "update_url": null
     },
     "exported_at": "2026-08-12T00:00:00+00:00",
-    "name": "HardGaming SkyRP Server",
+    "name": "HardGaming SkyMP Server",
     "author": "ezekielj221@gmail.com",
-    "description": "Multiplayer Skyrim roleplay server (SkyRP / HardGaming SkyRP). Requires operator-supplied Skyrim Special Edition master files.",
+    "description": "Multiplayer Skyrim roleplay server (SkyMP / HardGaming SkyMP). Requires operator-supplied Skyrim Special Edition master files.",
     "features": null,
     "docker_images": {
-        "HardGaming SkyRP Server": "ghcr.io/jafesu/skyrp-server:latest",
-        "HardGaming SkyRP Server (pinned)": "ghcr.io/jafesu/skyrp-server:byo"
+        "HardGaming SkyMP Server": "ghcr.io/jafesu/skymp-server:latest",
+        "HardGaming SkyMP Server (pinned)": "ghcr.io/jafesu/skymp-server:byo"
     },
     "file_denylist": [],
-    "startup": "/opt/skyrp/entrypoint.sh node dist_back/skymp5-server.js",
+    "startup": "/opt/skymp/entrypoint.sh node dist_back/skymp5-server.js",
     "config": {
         "files": "{}",
         "startup": "{\r\n    \"done\": \"Current process ID is\"\r\n}",
@@ -23,7 +23,7 @@
     },
     "scripts": {
         "installation": {
-            "script": "#!/bin/bash\n# HardGaming SkyRP server install: prepare the volume layout.\n#\n# The Skyrim master files are NOT downloaded here. They are part of your own\n# Skyrim Special Edition installation and are not redistributable.\n\nset -e\n\nmkdir -p /mnt/server/data\n# scripts/ must exist: the server registers it as a script storage and the\n# directory iterator throws if it is absent.\nmkdir -p /mnt/server/data/scripts\nmkdir -p /mnt/server/world\nmkdir -p /mnt/server/gamemode_extensions\n\ncat > /mnt/server/data/PUT-ESM-FILES-HERE.txt <<'EOF'\nThis server needs five files from your own Skyrim Special Edition install:\n\n  Skyrim.esm\n  Update.esm\n  Dawnguard.esm\n  HearthFires.esm\n  Dragonborn.esm\n\nCopy them from:\n\n  <Steam>/steamapps/common/Skyrim Special Edition/Data/\n\ninto this data/ directory, using the panel file manager or SFTP.\n\nThe server refuses to start until all five are present. Delete this file\nonce you are done.\nEOF\n\ncat > /mnt/server/gamemode_extensions/README.txt <<'EOF'\nDrop your gamemode parts here as .js files.\n\nOn every server start they are concatenated in filename order into\ngamemode.js, exactly like the Server Manager's \"Build gamemode only\".\nA part with a syntax error aborts the build and leaves the last good\ngamemode.js in place.\n\nIf you would rather manage one file, delete this directory and upload\ngamemode.js directly instead.\nEOF\n\necho \"Install complete. Upload your .esm files into data/ before starting.\"\n",
+            "script": "#!/bin/bash\n# HardGaming SkyMP server install: prepare the volume layout.\n#\n# The Skyrim master files are NOT downloaded here. They are part of your own\n# Skyrim Special Edition installation and are not redistributable.\n\nset -e\n\nmkdir -p /mnt/server/data\n# scripts/ must exist: the server registers it as a script storage and the\n# directory iterator throws if it is absent.\nmkdir -p /mnt/server/data/scripts\nmkdir -p /mnt/server/world\nmkdir -p /mnt/server/gamemode_extensions\n\ncat > /mnt/server/data/PUT-ESM-FILES-HERE.txt <<'EOF'\nThis server needs five files from your own Skyrim Special Edition install:\n\n  Skyrim.esm\n  Update.esm\n  Dawnguard.esm\n  HearthFires.esm\n  Dragonborn.esm\n\nCopy them from:\n\n  <Steam>/steamapps/common/Skyrim Special Edition/Data/\n\ninto this data/ directory, using the panel file manager or SFTP.\n\nThe server refuses to start until all five are present. Delete this file\nonce you are done.\nEOF\n\ncat > /mnt/server/gamemode_extensions/README.txt <<'EOF'\nDrop your gamemode parts here as .js files.\n\nOn every server start they are concatenated in filename order into\ngamemode.js, exactly like the Server Manager's \"Build gamemode only\".\nA part with a syntax error aborts the build and leaves the last good\ngamemode.js in place.\n\nIf you would rather manage one file, delete this directory and upload\ngamemode.js directly instead.\nEOF\n\necho \"Install complete. Upload your .esm files into data/ before starting.\"\n",
             "container": "ghcr.io/pterodactyl/installers:debian",
             "entrypoint": "bash"
         }
@@ -33,7 +33,7 @@
             "name": "Server name",
             "description": "Shown in the launcher and on the master list.",
             "env_variable": "SERVER_NAME",
-            "default_value": "HardGaming SkyRP Server",
+            "default_value": "HardGaming SkyMP Server",
             "user_viewable": true,
             "user_editable": true,
             "rules": "required|string|max:64",

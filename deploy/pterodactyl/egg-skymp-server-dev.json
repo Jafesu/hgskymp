@@ -1,19 +1,19 @@
 {
-    "_comment": "DEVELOPMENT AND TESTING ONLY. The install script downloads Bethesda-copyrighted Skyrim master files from a third-party mirror. Do not use this egg on a public or commercial node, and do not distribute it. Use egg-skyrp-server.json for anything real.",
+    "_comment": "DEVELOPMENT AND TESTING ONLY. The install script downloads Bethesda-copyrighted Skyrim master files from a third-party mirror. Do not use this egg on a public or commercial node, and do not distribute it. Use egg-skymp-server.json for anything real.",
     "meta": {
         "version": "PTDL_v2",
         "update_url": null
     },
     "exported_at": "2026-08-12T00:00:00+00:00",
-    "name": "HardGaming SkyRP Server (dev)",
+    "name": "HardGaming SkyMP Server (dev)",
     "author": "ezekielj221@gmail.com",
-    "description": "DEV ONLY. Identical to the HardGaming SkyRP Server egg except the install step downloads the Skyrim master files from the mirror this repository's CI uses. Those files are Bethesda's property and this is not a licensed redistribution channel. Internal testing only.",
+    "description": "DEV ONLY. Identical to the HardGaming SkyMP Server egg except the install step downloads the Skyrim master files from the mirror this repository's CI uses. Those files are Bethesda's property and this is not a licensed redistribution channel. Internal testing only.",
     "features": null,
     "docker_images": {
-        "HardGaming SkyRP Server": "ghcr.io/jafesu/skyrp-server:latest"
+        "HardGaming SkyMP Server": "ghcr.io/jafesu/skymp-server:latest"
     },
     "file_denylist": [],
-    "startup": "/opt/skyrp/entrypoint.sh node dist_back/skymp5-server.js",
+    "startup": "/opt/skymp/entrypoint.sh node dist_back/skymp5-server.js",
     "config": {
         "files": "{}",
         "startup": "{\r\n    \"done\": \"Current process ID is\"\r\n}",
@@ -32,7 +32,7 @@
             "name": "Server name",
             "description": "Shown in the launcher and on the master list.",
             "env_variable": "SERVER_NAME",
-            "default_value": "HardGaming SkyRP Dev",
+            "default_value": "HardGaming SkyMP Dev",
             "user_viewable": true,
             "user_editable": true,
             "rules": "required|string|max:64",

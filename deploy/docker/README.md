@@ -1,4 +1,4 @@
-# HardGaming SkyRP server container
+# HardGaming SkyMP server container
 
 Linux container image for the game server. The Windows-side pieces (the
 launcher, SkyrimPlatform, the client) are not part of this image and are not
@@ -47,7 +47,7 @@ an explicit acknowledgement:
 ```bash
 docker build -f deploy/docker/Dockerfile --target runtime-dev \
   --build-arg I_UNDERSTAND_THIS_IMAGE_IS_NOT_DISTRIBUTABLE=yes \
-  -t skyrp-server:dev .
+  -t skymp-server:dev .
 ```
 
 Without that build-arg the stage fails, so no CI job or stray `--target` can
@@ -59,7 +59,7 @@ Build from the repository root; the context is the repo, not this directory.
 
 ```bash
 docker build -f deploy/docker/Dockerfile --target runtime-byo \
-  -t ghcr.io/jafesu/skyrp-server:byo .
+  -t ghcr.io/jafesu/skymp-server:byo .
 ```
 
 The first build compiles every vcpkg dependency from source and takes roughly
@@ -79,7 +79,7 @@ cannot pull it anonymously.
 
 ## Layout
 
-The image keeps its binaries in `/opt/skyrp` and treats `/home/container` as
+The image keeps its binaries in `/opt/skymp` and treats `/home/container` as
 the server directory, because the server resolves everything relative to its
 working directory: it requires `./scam_native.node`, reads
 `./server-settings.json`, loads `./gamemode.js` and reads

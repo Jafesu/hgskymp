@@ -1,4 +1,4 @@
-# HardGaming SkyRP — Platform Plan
+# HardGaming SkyMP — Platform Plan
 
 ## Context
 
@@ -121,7 +121,7 @@ The entrypoint gains a step that fetches `MODLIST_URL`, downloads the server
 plugins into `data/`, and writes `loadOrder` into `server-settings.json` —
 reusing the existing `render-settings.js` merge logic rather than a new path.
 
-## 4. Launcher (new, HardGaming SkyRP)
+## 4. Launcher (new, HardGaming SkyMP)
 
 New Electron app. **Written from scratch**, not a re-skin: new information
 architecture, new visual design, new code. The mechanical parts that must
@@ -168,7 +168,7 @@ rather than as a failed connection.
 
 ### Branding
 
-`HardGaming SkyRP` throughout: product name, installer, icons, window title,
+`HardGaming SkyMP` throughout: product name, installer, icons, window title,
 update feed. No `Alduinak` string anywhere.
 
 ---

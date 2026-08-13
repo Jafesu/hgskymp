@@ -1,13 +1,13 @@
 # Pterodactyl eggs
 
 Two eggs, both running the same published image
-(`ghcr.io/jafesu/skyrp-server`). They differ only in what the
+(`ghcr.io/jafesu/skymp-server`). They differ only in what the
 install step puts into the volume.
 
 | Egg | Install step | Use for |
 | --- | --- | --- |
-| `egg-skyrp-server.json` | Creates the directory layout and tells the operator to upload their own master files | Anything real |
-| `egg-skyrp-server-dev.json` | Downloads the master files from the mirror this repo's CI uses | Internal testing only |
+| `egg-skymp-server.json` | Creates the directory layout and tells the operator to upload their own master files | Anything real |
+| `egg-skymp-server-dev.json` | Downloads the master files from the mirror this repo's CI uses | Internal testing only |
 
 The dev egg fetches Bethesda's copyrighted files. It exists so a test server can
 be brought up without hand-uploading five large files, and it must not be used

@@ -8,23 +8,23 @@
 
 set -euo pipefail
 
-SKYRP_HOME="${SKYRP_HOME:-/opt/skyrp}"
+SKYMP_HOME="${SKYMP_HOME:-/opt/skymp}"
 DATA_DIR="${DATA_DIR:-data}"
 
 log() { echo "[entrypoint] $*"; }
 
 # Pterodactyl startup commands call this script explicitly, and some Wings
 # configurations also apply the image ENTRYPOINT. Run the preparation once.
-if [ -n "${SKYRP_ENTRYPOINT_DONE:-}" ]; then
+if [ -n "${SKYMP_ENTRYPOINT_DONE:-}" ]; then
   exec "$@"
 fi
-export SKYRP_ENTRYPOINT_DONE=1
+export SKYMP_ENTRYPOINT_DONE=1
 
 # ── Runtime artifacts ────────────────────────────────────────────────────────
 # Recreated every boot so an image upgrade is picked up and a deleted symlink
 # self-heals. The operator's own files are never touched.
-ln -sfn "${SKYRP_HOME}/scam_native.node" ./scam_native.node
-ln -sfn "${SKYRP_HOME}/dist_back"        ./dist_back
+ln -sfn "${SKYMP_HOME}/scam_native.node" ./scam_native.node
+ln -sfn "${SKYMP_HOME}/dist_back"        ./dist_back
 
 # ── Game data ────────────────────────────────────────────────────────────────
 # scripts/ is not optional: ScriptStorageFactory always registers it as a
@@ -33,8 +33,8 @@ ln -sfn "${SKYRP_HOME}/dist_back"        ./dist_back
 mkdir -p "${DATA_DIR}" "${DATA_DIR}/scripts"
 
 # Dev image only: seed the Bethesda files baked into the image
-if [ -n "${SKYRP_DEV_DATA:-}" ] && [ -d "${SKYRP_DEV_DATA}" ]; then
-  for src in "${SKYRP_DEV_DATA}"/*.esm; do
+if [ -n "${SKYMP_DEV_DATA:-}" ] && [ -d "${SKYMP_DEV_DATA}" ]; then
+  for src in "${SKYMP_DEV_DATA}"/*.esm; do
     [ -e "$src" ] || continue
     dst="${DATA_DIR}/$(basename "$src")"
     if [ ! -f "$dst" ]; then
@@ -68,13 +68,13 @@ EOF
 fi
 
 # ── Settings ─────────────────────────────────────────────────────────────────
-node "${SKYRP_HOME}/render-settings.js" server-settings.json
+node "${SKYMP_HOME}/render-settings.js" server-settings.json
 
 # ── Gamemode ─────────────────────────────────────────────────────────────────
 # A broken part aborts the boot rather than quietly running the previous
 # gamemode, which would look like a successful deploy of the broken one.
 if [ -d gamemode_extensions ]; then
-  if ! node "${SKYRP_HOME}/build-gamemode.js" gamemode_extensions gamemode.js; then
+  if ! node "${SKYMP_HOME}/build-gamemode.js" gamemode_extensions gamemode.js; then
     echo "[entrypoint] ERROR: gamemode_extensions failed to build, refusing to start." >&2
     echo "[entrypoint] The previous gamemode.js is intact. Fix the part above and restart." >&2
     exit 1

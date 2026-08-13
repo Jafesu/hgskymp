@@ -1,4 +1,4 @@
-# HardGaming SkyRP game server container.
+# HardGaming SkyMP game server container.
 #
 # Build targets:
 #   runtime-byo  production. Bring your own Skyrim .esm files.
@@ -6,7 +6,7 @@
 #                Never push this target to a registry. See README.md.
 #
 # Build from the repository root, not from this directory:
-#   docker build -f deploy/docker/Dockerfile --target runtime-byo -t skyrp-server .
+#   docker build -f deploy/docker/Dockerfile --target runtime-byo -t skymp-server .
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Toolchain. Mirrors misc/deps_linux/ubuntu-2404.sh, pinned to clang-20.
@@ -124,32 +124,32 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
 # vcpkg links the rest statically. Anything else nodejs needs arrives as its
 # own apt dependency, so nothing further is pinned here.
 
-COPY --from=builder /src/build/dist/server/scam_native.node /opt/skyrp/scam_native.node
-COPY --from=builder /src/build/dist/server/dist_back        /opt/skyrp/dist_back
+COPY --from=builder /src/build/dist/server/scam_native.node /opt/skymp/scam_native.node
+COPY --from=builder /src/build/dist/server/dist_back        /opt/skymp/dist_back
 
-COPY deploy/docker/entrypoint.sh      /opt/skyrp/entrypoint.sh
-COPY deploy/docker/render-settings.js /opt/skyrp/render-settings.js
-COPY deploy/docker/build-gamemode.js  /opt/skyrp/build-gamemode.js
+COPY deploy/docker/entrypoint.sh      /opt/skymp/entrypoint.sh
+COPY deploy/docker/render-settings.js /opt/skymp/render-settings.js
+COPY deploy/docker/build-gamemode.js  /opt/skymp/build-gamemode.js
 
 # .gitattributes pins these to LF, but a build context can still arrive with
 # CRLF (zip export, a checkout predating that rule). A CRLF shebang is fatal.
-RUN sed -i 's/\r$//' /opt/skyrp/entrypoint.sh \
-                     /opt/skyrp/render-settings.js \
-                     /opt/skyrp/build-gamemode.js \
- && chmod +x /opt/skyrp/entrypoint.sh
+RUN sed -i 's/\r$//' /opt/skymp/entrypoint.sh \
+                     /opt/skymp/render-settings.js \
+                     /opt/skymp/build-gamemode.js \
+ && chmod +x /opt/skymp/entrypoint.sh
 
 # Deliberately no SERVER_PORT/UI_PORT/DATA_DIR defaults here. render-settings.js
 # only overwrites a key when its variable is set, so baking defaults would make
 # those settings permanently unmanageable from server-settings.json. Unset, the
 # server and the entrypoint fall back to 7777, the derived ui port and ./data.
-ENV SKYRP_HOME=/opt/skyrp
+ENV SKYMP_HOME=/opt/skymp
 
 USER container
 WORKDIR /home/container
 
 EXPOSE 7777/udp 3000/tcp
 
-ENTRYPOINT ["/opt/skyrp/entrypoint.sh"]
+ENTRYPOINT ["/opt/skymp/entrypoint.sh"]
 CMD ["node", "dist_back/skymp5-server.js"]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -157,12 +157,12 @@ CMD ["node", "dist_back/skymp5-server.js"]
 # ─────────────────────────────────────────────────────────────────────────────
 FROM runtime-base AS runtime-byo
 
-LABEL org.opencontainers.image.title="HardGaming SkyRP Server" \
+LABEL org.opencontainers.image.title="SkyMP Server" \
       org.opencontainers.image.description="Multiplayer Skyrim roleplay server. Requires operator-supplied Skyrim Special Edition master files." \
       org.opencontainers.image.vendor="HardGaming" \
       org.opencontainers.image.url="https://hardgaming.tech/" \
       org.opencontainers.image.licenses="AGPL-3.0" \
-      org.opencontainers.image.source="https://github.com/Jafesu/indigoreachrp"
+      org.opencontainers.image.source="https://github.com/Jafesu/hgskymp"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Development image. Bakes in Bethesda-copyrighted .esm files.
@@ -187,16 +187,16 @@ RUN if [ "${I_UNDERSTAND_THIS_IMAGE_IS_NOT_DISTRIBUTABLE}" != "yes" ]; then \
       exit 1; \
     fi
 
-RUN mkdir -p /opt/skyrp/dev-data \
+RUN mkdir -p /opt/skymp/dev-data \
  && for esm in Skyrim.esm Update.esm Dawnguard.esm HearthFires.esm Dragonborn.esm; do \
       echo "fetching $esm"; \
-      curl -fsSL --retry 3 -o "/opt/skyrp/dev-data/$esm" "${SE_DATA_BASE}/$esm"; \
+      curl -fsSL --retry 3 -o "/opt/skymp/dev-data/$esm" "${SE_DATA_BASE}/$esm"; \
     done \
- && chmod -R a+r /opt/skyrp/dev-data
+ && chmod -R a+r /opt/skymp/dev-data
 
-ENV SKYRP_DEV_DATA=/opt/skyrp/dev-data
+ENV SKYMP_DEV_DATA=/opt/skymp/dev-data
 
-LABEL org.opencontainers.image.title="HardGaming SkyRP Server (dev)" \
+LABEL org.opencontainers.image.title="SkyMP Server (dev)" \
       org.opencontainers.image.description="DEVELOPMENT ONLY. Contains Bethesda-copyrighted game files. Do not distribute." \
       com.hardgaming.no-push="true"
 
