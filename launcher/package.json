@@ -10,7 +10,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "test": "node test/backend.test.js && node test/preflight.test.js && node test/nexus.test.js && node test/mo2.test.js",
+    "test": "node test/backend.test.js && node test/preflight.test.js && node test/nexus.test.js && node test/mo2.test.js && node test/install.test.js",
     "build:win": "electron-builder --win"
   },
   "dependencies": {
