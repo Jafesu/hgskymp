@@ -18,6 +18,7 @@
 // Nothing here dead-ends a free user; it just costs them clicks.
 
 const https = require('https');
+const crypto = require('crypto');
 
 const GAME = 'skyrimspecialedition';
 const API_HOST = 'api.nexusmods.com';
@@ -201,6 +202,88 @@ function modPageUrl(modId, fileId) {
 /** Where a user creates the key the launcher signs in with. */
 const API_KEY_PAGE = 'https://next.nexusmods.com/settings/api-keys';
 
+// ── single sign-on ───────────────────────────────────────────────────────────
+
+const SSO_ENDPOINT = 'wss://sso.nexusmods.com';
+
+/**
+ * Sign in without asking anyone to find and paste an API key.
+ *
+ * Opens a socket to Nexus, sends an id, then sends the player to a Nexus page
+ * carrying that id. When they approve, the key arrives back over the socket.
+ *
+ * Requires an application slug Nexus recognises. An unregistered slug is
+ * rejected at the far end, which is why pasting a key stays available: losing
+ * SSO should not mean losing the ability to sign in at all.
+ *
+ * @param {string} slug        registered application slug
+ * @param {(url:string)=>void} openUrl
+ * @param {object} [opts]
+ * @returns {Promise<{ok:boolean, apiKey?:string, error?:string}>}
+ */
+function ssoLogin(slug, openUrl, { timeoutMs = 5 * 60 * 1000 } = {}) {
+  return new Promise((resolve) => {
+    if (!slug) return resolve({ ok: false, error: 'No Nexus application slug is configured.' });
+
+    let WebSocketImpl;
+    try {
+      WebSocketImpl = require('ws');
+    } catch {
+      return resolve({ ok: false, error: 'WebSocket support is unavailable in this build.' });
+    }
+
+    const id = crypto.randomUUID();
+    const socket = new WebSocketImpl(SSO_ENDPOINT);
+
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try {
+        socket.close();
+      } catch {}
+      resolve(result);
+    };
+
+    // Generous, because it spans a human tabbing to a browser and logging in
+    const timer = setTimeout(
+      () => finish({ ok: false, error: 'Nexus sign-in timed out. Try again, or paste an API key instead.' }),
+      timeoutMs
+    );
+
+    socket.on('open', () => {
+      // protocol 2: the server replies with a connection token, then with the
+      // api key once the player approves in their browser
+      socket.send(JSON.stringify({ id, token: null, protocol: 2 }));
+      openUrl(`https://www.nexusmods.com/sso?id=${id}&application=${encodeURIComponent(slug)}`);
+    });
+
+    socket.on('message', (raw) => {
+      let msg;
+      try {
+        msg = JSON.parse(raw.toString());
+      } catch {
+        return;
+      }
+      if (msg.success === false) {
+        return finish({ ok: false, error: msg.error || 'Nexus refused the sign-in request.' });
+      }
+      if (msg.data && msg.data.api_key) {
+        return finish({ ok: true, apiKey: msg.data.api_key });
+      }
+      // The first reply only carries a connection token; wait for the approval
+    });
+
+    socket.on('error', () =>
+      finish({ ok: false, error: 'Could not reach the Nexus sign-in service.' })
+    );
+    socket.on('close', () =>
+      finish({ ok: false, error: 'The Nexus sign-in window closed before it finished.' })
+    );
+  });
+}
+
 module.exports = {
   GAME,
   API_KEY_PAGE,
@@ -208,6 +291,7 @@ module.exports = {
   validate,
   listFiles,
   getDownloadLinks,
+  ssoLogin,
   parseNxmUrl,
   modPageUrl,
 };

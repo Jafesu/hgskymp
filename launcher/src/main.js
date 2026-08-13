@@ -1,6 +1,8 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
+const fs = require('fs');
+const { execFileSync } = require('child_process');
 const path = require('path');
 const Store = require('electron-store');
 const config = require('./config');
@@ -227,6 +229,103 @@ ipcMain.handle('nexus:signOut', () => {
   store.delete('nexusAccount');
   return { ok: true };
 });
+
+// Single sign-on. The key never reaches the renderer: it arrives over the
+// socket here, is validated, and only the account name and tier are returned.
+ipcMain.handle('nexus:sso', async () => {
+  const res = await nexus.ssoLogin(config.nexusAppSlug, (url) => shell.openExternal(url));
+  if (!res.ok) return { ok: false, error: res.error };
+
+  const who = await nexus.validate(res.apiKey);
+  if (!who.ok) return { ok: false, error: who.error };
+
+  store.set('nexusApiKey', res.apiKey);
+  store.set('nexusAccount', { name: who.name, premium: who.premium, userId: who.userId });
+  return { ok: true, account: { name: who.name, premium: who.premium } };
+});
+
+// ── game folder ──────────────────────────────────────────────────────────────
+
+const SKYRIM_EXES = ['SkyrimSE.exe', 'SkyrimVR.exe'];
+
+/** Does this look like a Skyrim install, rather than any folder at all. */
+function inspectGameFolder(dir) {
+  if (!dir) return { valid: false, reason: 'no folder chosen' };
+  const exe = SKYRIM_EXES.find((name) => fs.existsSync(path.join(dir, name)));
+  if (!exe) {
+    return { valid: false, reason: 'No SkyrimSE.exe here. Pick the folder containing the game, not the Data folder.' };
+  }
+  // Data holds the master files the server's manifest is compared against
+  if (!fs.existsSync(path.join(dir, 'Data', 'Skyrim.esm'))) {
+    return { valid: false, reason: 'Found the game but not Data\\Skyrim.esm. This install looks incomplete.' };
+  }
+  return { valid: true, exe };
+}
+
+ipcMain.handle('game:browse', async () => {
+  const picked = await dialog.showOpenDialog(win, {
+    title: 'Select your Skyrim Special Edition folder',
+    properties: ['openDirectory'],
+    defaultPath: store.get('skyrimPath') || undefined,
+  });
+  if (picked.canceled || !picked.filePaths.length) return { ok: false, canceled: true };
+
+  const dir = picked.filePaths[0];
+  const check = inspectGameFolder(dir);
+  // Reported rather than silently accepted: a wrong folder here surfaces much
+  // later as mods that install cleanly and do nothing.
+  if (!check.valid) return { ok: false, path: dir, error: check.reason };
+
+  store.set('skyrimPath', dir);
+  return { ok: true, path: dir };
+});
+
+/**
+ * Guess where Skyrim is, so most players never open the picker.
+ *
+ * Registry first because it is authoritative, then the usual Steam library
+ * locations, including the extra drives people move large games to.
+ */
+ipcMain.handle('game:detect', async () => {
+  const candidates = [];
+
+  for (const key of [
+    'HKLM\\SOFTWARE\\WOW6432Node\\Bethesda Softworks\\Skyrim Special Edition',
+    'HKLM\\SOFTWARE\\Bethesda Softworks\\Skyrim Special Edition',
+  ]) {
+    try {
+      const out = execFileSync('reg', ['query', key, '/v', 'installed path'], {
+        encoding: 'utf8',
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      });
+      const match = /installed path\s+REG_SZ\s+(.+)/i.exec(out);
+      if (match) candidates.push(match[1].trim());
+    } catch {
+      // key absent, which is normal
+    }
+  }
+
+  const suffix = path.join('steamapps', 'common', 'Skyrim Special Edition');
+  for (const root of [
+    process.env['ProgramFiles(x86)'] ? path.join(process.env['ProgramFiles(x86)'], 'Steam') : null,
+    process.env.ProgramFiles ? path.join(process.env.ProgramFiles, 'Steam') : null,
+    ...'CDEFGH'.split('').map((d) => `${d}:\\SteamLibrary`),
+    ...'CDEFGH'.split('').map((d) => `${d}:\\Steam`),
+  ].filter(Boolean)) {
+    candidates.push(path.join(root, suffix));
+  }
+
+  for (const dir of candidates) {
+    if (inspectGameFolder(dir).valid) {
+      store.set('skyrimPath', dir);
+      return { ok: true, path: dir };
+    }
+  }
+  return { ok: false, error: 'Could not find Skyrim Special Edition automatically. Use Browse to point at it.' };
+});
+
+ipcMain.handle('game:check', (_e, dir) => inspectGameFolder(dir || store.get('skyrimPath')));
 
 // ── install and play ─────────────────────────────────────────────────────────
 

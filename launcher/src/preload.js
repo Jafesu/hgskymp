@@ -24,6 +24,12 @@ contextBridge.exposeInMainWorld('hg', {
   nexusSignIn: (apiKey) => ipcRenderer.invoke('nexus:signIn', apiKey),
   nexusAccount: () => ipcRenderer.invoke('nexus:account'),
   nexusSignOut: () => ipcRenderer.invoke('nexus:signOut'),
+  nexusSso: () => ipcRenderer.invoke('nexus:sso'),
+
+  // Game folder
+  browseGameFolder: () => ipcRenderer.invoke('game:browse'),
+  detectGameFolder: () => ipcRenderer.invoke('game:detect'),
+  checkGameFolder: (dir) => ipcRenderer.invoke('game:check', dir),
 
   // Install and play
   installStatus: () => ipcRenderer.invoke('install:status'),

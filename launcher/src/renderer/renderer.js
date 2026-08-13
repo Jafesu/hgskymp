@@ -215,6 +215,34 @@ function renderAccount() {
     : 'Nexus only gives Premium accounts automatic downloads, so free accounts confirm each mod on the Nexus site. The launcher opens each page for you.';
 }
 
+$('btn-nexus-sso').addEventListener('click', async () => {
+  const err = $('nexus-error');
+  err.hidden = true;
+  const btn = $('btn-nexus-sso');
+  btn.disabled = true;
+  btn.textContent = 'Waiting for Nexus...';
+  try {
+    const res = await window.hg.nexusSso();
+    if (!res.ok) {
+      // SSO needs an application slug Nexus recognises, so failure here is
+      // plausible and must not be a dead end: point at the key instead.
+      err.textContent = `${res.error} You can still sign in with an API key.`;
+      err.hidden = false;
+      $('nexus-manual').hidden = false;
+      return;
+    }
+    account = await window.hg.nexusAccount();
+    renderAccount();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign in with Nexus';
+  }
+});
+
+$('btn-nexus-manual').addEventListener('click', () => {
+  $('nexus-manual').hidden = !$('nexus-manual').hidden;
+});
+
 $('btn-nexus-signin').addEventListener('click', async () => {
   const err = $('nexus-error');
   err.hidden = true;
@@ -243,6 +271,42 @@ $('btn-nexus-signout').addEventListener('click', async () => {
 $('link-api-keys').addEventListener('click', (e) => {
   e.preventDefault();
   window.hg.openExternal(account.apiKeyPage);
+});
+
+// ── game folder ──────────────────────────────────────────────────────────────
+
+function showSkyrim(pathValue, message, bad) {
+  $('setting-skyrim').value = pathValue || '';
+  const hint = $('skyrim-hint');
+  hint.textContent = message || 'Used to install mods and launch the game.';
+  hint.style.color = bad ? 'var(--accent-hot)' : '';
+}
+
+$('btn-skyrim-browse').addEventListener('click', async () => {
+  const res = await window.hg.browseGameFolder();
+  if (res.canceled) return;
+  if (!res.ok) {
+    // The folder is shown alongside the reason, so it is obvious which one
+    // was rejected rather than leaving the player guessing.
+    showSkyrim(res.path || $('setting-skyrim').value, res.error, true);
+    return;
+  }
+  showSkyrim(res.path, 'Skyrim found here.');
+});
+
+$('btn-skyrim-detect').addEventListener('click', async () => {
+  const btn = $('btn-skyrim-detect');
+  btn.disabled = true;
+  try {
+    const res = await window.hg.detectGameFolder();
+    if (!res.ok) {
+      showSkyrim($('setting-skyrim').value, res.error, true);
+      return;
+    }
+    showSkyrim(res.path, 'Found automatically.');
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 // ── Mod Organizer state ──────────────────────────────────────────────────────

@@ -195,6 +195,12 @@ input[type="text"]:focus {
 /* ── account and install ─────────────────────────────────────────────── */
 
 .account-row { display: flex; align-items: center; gap: 10px; }
+.setting-path-row { display: flex; align-items: center; gap: 8px; }
+.setting-path-row input[type="text"] { flex: 1; }
+.setting-path-row input[readonly] { color: var(--text-dim); }
+
+.btn-quiet { background: none; border-color: transparent; color: var(--text-dim); }
+.btn-quiet:hover { background: var(--bg-hover); color: var(--text); }
 .account-name { font-weight: 600; }
 
 .link { color: var(--accent-hot); text-decoration: none; }

@@ -52,25 +52,39 @@
         <span class="field-hint">Where the server list comes from. Direct connect works without it.</span>
       </label>
 
-      <label class="field">
+      <div class="field">
         <span class="field-label">Skyrim Special Edition folder</span>
-        <input id="setting-skyrim" type="text" spellcheck="false" placeholder="C:\Program Files (x86)\Steam\steamapps\common\Skyrim Special Edition" />
-        <span class="field-hint">Used to install mods and launch the game.</span>
-      </label>
+        <div class="setting-path-row">
+          <input id="setting-skyrim" type="text" spellcheck="false" readonly placeholder="Not set" />
+          <button id="btn-skyrim-detect" class="btn">Detect</button>
+          <button id="btn-skyrim-browse" class="btn">Browse...</button>
+        </div>
+        <span class="field-hint" id="skyrim-hint">Used to install mods and launch the game.</span>
+      </div>
 
       <div class="field">
         <span class="field-label">Nexus Mods account</span>
 
         <div id="nexus-signed-out">
-          <div class="connect">
-            <input id="nexus-key" type="password" spellcheck="false" placeholder="Paste your Nexus API key" />
-            <button id="btn-nexus-signin" class="btn btn-primary">Sign in</button>
+          <div class="setting-path-row">
+            <button id="btn-nexus-sso" class="btn btn-primary">Sign in with Nexus</button>
+            <button id="btn-nexus-manual" class="btn btn-quiet">Use an API key instead</button>
           </div>
           <span class="field-hint">
-            Create a key on
-            <a href="#" id="link-api-keys" class="link">your Nexus API keys page</a>.
-            Mods are downloaded under your own account.
+            Opens Nexus in your browser to approve this launcher. Mods download
+            under your own account.
           </span>
+
+          <div id="nexus-manual" hidden>
+            <div class="connect">
+              <input id="nexus-key" type="password" spellcheck="false" placeholder="Paste your Nexus API key" />
+              <button id="btn-nexus-signin" class="btn">Sign in</button>
+            </div>
+            <span class="field-hint">
+              Create one on <a href="#" id="link-api-keys" class="link">your Nexus API keys page</a>.
+            </span>
+          </div>
+
           <p id="nexus-error" class="error" hidden></p>
         </div>
 

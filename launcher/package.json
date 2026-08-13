@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "7zip-bin": "^5.2.0",
-    "electron-store": "^8.2.0"
+    "electron-store": "^8.2.0",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "electron": "^41.2.0",

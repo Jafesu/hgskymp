@@ -10,6 +10,8 @@ module.exports = {
     site: 'https://hardgaming.tech/',
   },
   // How often the server list refreshes while it is on screen
+  // Nexus single sign-on needs an application slug Nexus recognises
+  nexusAppSlug: process.env.NEXUS_APP_SLUG || 'hardgaming-skymp',
   refreshIntervalMs: 20000,
   requestTimeoutMs: 6000,
 };
