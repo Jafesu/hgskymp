@@ -104,16 +104,6 @@ for (const [envKey, settingKey, coerce] of MAPPINGS) {
   applied.push(`${settingKey}=${secret ? '***' : JSON.stringify(settings[settingKey])}`);
 }
 
-// Default the http port to the game port rather than to the server's own
-// port + 1 (or 3000). The game port is UDP and this is TCP, and an
-// orchestrator maps both protocols for one allocation, so sharing the number
-// makes the only routable port the correct one automatically. Anything else
-// binds fine inside the container and is unreachable from outside, which looks
-// like a healthy server right up until the launcher cannot poll it.
-if (settings.uiPort === undefined && settings.port !== undefined) {
-  settings.uiPort = settings.port;
-  applied.push(`uiPort=${settings.uiPort} (from the allocation)`);
-}
 
 // Platform registration is a nested object, so it is built separately rather
 // than bent into the flat mapping above. Only keys whose variable is set are
@@ -153,9 +143,26 @@ if (settings.platform && settings.platform.url && !settings.platform.publicHost)
   process.exit(1);
 }
 
-// Required by the addon, and there is no sensible way for it to guess
+// The addon reads these with an unguarded .at(), so a missing key aborts the
+// boot with a bare "key 'maxPlayers' not found" from the json library. The
+// TypeScript Settings class has defaults, but the addon never sees those: it
+// parses server-settings.json directly. Mirror them here so a container
+// started with no environment at all still boots.
+if (settings.port === undefined) settings.port = 7777;
+if (settings.maxPlayers === undefined) settings.maxPlayers = 100;
 if (settings.dataDir === undefined) settings.dataDir = 'data';
 if (settings.gamemodePath === undefined) settings.gamemodePath = 'gamemode.js';
+
+// Default the http port to the game port rather than to port + 1 (or 3000).
+// The game port is UDP and this is TCP, and an orchestrator maps both
+// protocols for one allocation, so sharing the number makes the only routable
+// port the correct one automatically. Anything else binds fine inside the
+// container and is unreachable from outside, which looks like a healthy server
+// right up until the launcher cannot poll it.
+if (settings.uiPort === undefined) {
+  settings.uiPort = settings.port;
+  applied.push(`uiPort=${settings.uiPort} (from the game port)`);
+}
 
 // uiPort matching the game port is not a collision and is in fact the default
 // here: the game port is UDP and this is TCP.

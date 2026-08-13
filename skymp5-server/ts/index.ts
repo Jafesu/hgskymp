@@ -229,7 +229,14 @@ const main = async () => {
   // period first. Neither the pending queue nor the busy flag is exposed to
   // JS, so this is a bounded drain rather than a guaranteed flush; a real one
   // needs a flush binding on the C++ side.
-  const SHUTDOWN_DRAIN_MS = 5000;
+  // Must stay comfortably under whatever stop timeout the host applies, or the
+  // drain is cut short by the SIGKILL it exists to avoid: measured against
+  // Docker, a drain longer than the timeout turns a clean exit 0 into a 137.
+  // Raise it only alongside the platform's own timeout.
+  const SHUTDOWN_DRAIN_MS = (() => {
+    const raw = parseInt(process.env.SHUTDOWN_DRAIN_MS || "", 10);
+    return Number.isInteger(raw) && raw >= 0 && raw <= 60000 ? raw : 2500;
+  })();
   let shuttingDown = false;
 
   const requestShutdown = (signal: string) => {
