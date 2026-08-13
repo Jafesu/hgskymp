@@ -104,6 +104,24 @@ for (const [envKey, settingKey, coerce] of MAPPINGS) {
   applied.push(`${settingKey}=${secret ? '***' : JSON.stringify(settings[settingKey])}`);
 }
 
+// A non-default game port means something else is assigning ports, and an
+// orchestrator only routes the allocations it handed out. Binding any other
+// port succeeds inside the container and is unreachable from outside, which
+// looks like a working server until the launcher cannot poll it.
+if (settings.port !== undefined && settings.port !== 7777) {
+  const uiPort = settings.uiPort === undefined ? settings.port + 1 : settings.uiPort;
+  const derived = settings.uiPort === undefined;
+  if (derived || uiPort === 3000) {
+    console.warn(
+      `[settings] WARNING: game port is ${settings.port} but the http port is ${uiPort}` +
+        `${derived ? ' (derived, UI_PORT unset)' : ''}.\n` +
+        `[settings]          If ${uiPort} is not an allocation assigned to this server, ` +
+        `/api/status and the modpack will be unreachable.\n` +
+        `[settings]          Set UI_PORT to a second allocation.`
+    );
+  }
+}
+
 // Platform registration is a nested object, so it is built separately rather
 // than bent into the flat mapping above. Only keys whose variable is set are
 // touched, so hand edits to the rest of the block survive.
