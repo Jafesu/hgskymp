@@ -1,12 +1,65 @@
 # TODO(#2280): rename from PR to something else (also applies to Windows etc)
 # TODO(#2280): keep in line with deploy.yml
 name: PR Linux
+# A run is a full vcpkg build from source across four distros, so it only fires
+# for paths that can actually affect it: the CMake subprojects and the build
+# infrastructure. The backend, launcher, deployment assets and docs take no part
+# in the C++ build. GitHub Actions has no YAML anchors, hence the repeated list.
 on:
     pull_request:
-        # any
+        paths:
+          - 'client-deps/**'
+          - 'libespm/**'
+          - 'papyrus-vm/**'
+          - 'savefile/**'
+          - 'serialization/**'
+          - 'skymp5-client/**'
+          - 'skymp5-front/**'
+          - 'skymp5-functions-lib/**'
+          - 'skymp5-scripts/**'
+          - 'skymp5-server/**'
+          - 'skyrim-platform/**'
+          - 'unit/**'
+          - 'viet/**'
+          - 'cmake/**'
+          - 'overlay_ports/**'
+          - 'overlay_triplets/**'
+          - 'misc/**'
+          - 'CMakeLists.txt'
+          - 'vcpkg.json'
+          - 'build.sh'
+          - '.github/workflows/pr-linux-variants.yml'
+          - '.github/workflows/linux-build-base.yml'
     push:
         branches:
           - main
+        paths:
+          - 'client-deps/**'
+          - 'libespm/**'
+          - 'papyrus-vm/**'
+          - 'savefile/**'
+          - 'serialization/**'
+          - 'skymp5-client/**'
+          - 'skymp5-front/**'
+          - 'skymp5-functions-lib/**'
+          - 'skymp5-scripts/**'
+          - 'skymp5-server/**'
+          - 'skyrim-platform/**'
+          - 'unit/**'
+          - 'viet/**'
+          - 'cmake/**'
+          - 'overlay_ports/**'
+          - 'overlay_triplets/**'
+          - 'misc/**'
+          - 'CMakeLists.txt'
+          - 'vcpkg.json'
+          - 'build.sh'
+          - '.github/workflows/pr-linux-variants.yml'
+          - '.github/workflows/linux-build-base.yml'
+    # Changes are reviewed before they reach GitHub rather than through pull
+    # requests, so without a manual trigger a branch can never be built.
+    # workflow_dispatch ignores paths, so a full run is always available.
+    workflow_dispatch:
 
 env:
     BUILD_TYPE: RelWithDebInfo
