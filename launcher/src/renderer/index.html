@@ -58,6 +58,44 @@
         <span class="field-hint">Used to install mods and launch the game.</span>
       </label>
 
+      <div class="field">
+        <span class="field-label">Nexus Mods account</span>
+
+        <div id="nexus-signed-out">
+          <div class="connect">
+            <input id="nexus-key" type="password" spellcheck="false" placeholder="Paste your Nexus API key" />
+            <button id="btn-nexus-signin" class="btn btn-primary">Sign in</button>
+          </div>
+          <span class="field-hint">
+            Create a key on
+            <a href="#" id="link-api-keys" class="link">your Nexus API keys page</a>.
+            Mods are downloaded under your own account.
+          </span>
+          <p id="nexus-error" class="error" hidden></p>
+        </div>
+
+        <div id="nexus-signed-in" hidden>
+          <div class="account-row">
+            <span id="nexus-name" class="account-name"></span>
+            <span id="nexus-tier" class="badge"></span>
+            <button id="btn-nexus-signout" class="btn">Sign out</button>
+          </div>
+          <span class="field-hint" id="nexus-tier-hint"></span>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="field-label">Mod Organizer</span>
+        <div class="account-row">
+          <span id="mo2-state" class="muted">checking...</span>
+          <button id="btn-mo2-install" class="btn" hidden>Set up now</button>
+        </div>
+        <span class="field-hint">
+          A private copy, separate from any Mod Organizer or Vortex you already use.
+          Your own setup is never modified.
+        </span>
+      </div>
+
       <div class="field-actions">
         <button id="btn-save-settings" class="btn btn-primary">Save</button>
         <span id="settings-saved" class="muted" hidden>Saved</span>
@@ -79,8 +117,16 @@
       </dl>
       <div class="sheet-actions">
         <button id="sheet-play" class="btn btn-primary btn-lg">Play</button>
+        <button id="sheet-install" class="btn" hidden>Install modpack</button>
         <button id="sheet-fav" class="btn">Save server</button>
       </div>
+
+      <div id="sheet-progress" class="progress" hidden>
+        <div class="progress-bar"><span id="sheet-progress-fill"></span></div>
+        <p id="sheet-progress-text" class="muted small"></p>
+      </div>
+
+      <ul id="sheet-problems" class="problems" hidden></ul>
       <p id="sheet-note" class="muted small"></p>
     </div>
   </div>

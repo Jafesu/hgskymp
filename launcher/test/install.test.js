@@ -164,6 +164,33 @@ const sha = (f) => crypto.createHash('sha256').update(fs.readFileSync(f)).digest
   const empty = await install.installModpack({ modpack: { mods: [] }, modsDir, downloadsDir, resolveDownload: resolver });
   check('an empty modpack is refused', empty.ok === false, empty);
 
+  // ── plugin resolution for pre-flight ──────────────────────────────────────
+  // MO2's virtual filesystem only exists while the game runs, so outside it a
+  // plugin is either in a mod folder or in the game's Data directory.
+  const rMods = path.join(tmp, 'rmods');
+  const rData = path.join(tmp, 'rdata');
+  fs.mkdirSync(path.join(rMods, 'ModA'), { recursive: true });
+  fs.mkdirSync(rData, { recursive: true });
+  fs.writeFileSync(path.join(rData, 'Skyrim.esm'), 'vanilla');
+  fs.writeFileSync(path.join(rData, 'SkyUI_SE.esp'), 'stale copy in Data');
+  fs.writeFileSync(path.join(rMods, 'ModA', 'SkyUI_SE.esp'), 'the managed copy');
+
+  check('a vanilla master resolves from the game Data folder',
+    install.resolvePluginPath(rMods, rData, 'Skyrim.esm') !== null);
+  check('a managed mod wins over a copy in Data, matching the runtime overlay',
+    install.resolvePluginPath(rMods, rData, 'SkyUI_SE.esp').includes('ModA'),
+    install.resolvePluginPath(rMods, rData, 'SkyUI_SE.esp'));
+  check('an absent plugin resolves to null',
+    install.resolvePluginPath(rMods, rData, 'Nope.esp') === null);
+
+  const collected = install.collectInstalledPlugins(
+    ['Skyrim.esm', 'SkyUI_SE.esp', 'Ghost.esp'], rMods, rData
+  );
+  check('collect returns one entry per plugin, in order', collected.length === 3);
+  check('...hashing what it finds', collected[0].crc32 !== null && collected[0].size === 7, collected[0]);
+  check('...and holding the index for what it does not, so later mismatches stay aligned',
+    collected[2].missing === true && collected[2].filename === 'Ghost.esp', collected[2]);
+
   fs.rmSync(tmp, { recursive: true, force: true });
   console.log(fail ? '\nFAILURES' : '\nall checks passed');
   process.exit(fail);

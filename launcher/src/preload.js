@@ -24,4 +24,12 @@ contextBridge.exposeInMainWorld('hg', {
   nexusSignIn: (apiKey) => ipcRenderer.invoke('nexus:signIn', apiKey),
   nexusAccount: () => ipcRenderer.invoke('nexus:account'),
   nexusSignOut: () => ipcRenderer.invoke('nexus:signOut'),
+
+  // Install and play
+  installStatus: () => ipcRenderer.invoke('install:status'),
+  ensureMo2: () => ipcRenderer.invoke('mo2:ensure'),
+  installModpack: (modpack) => ipcRenderer.invoke('install:modpack', modpack),
+  installFromHandoff: (mod, nxm) => ipcRenderer.invoke('install:fromHandoff', mod, nxm),
+  verifyForPlay: (server) => ipcRenderer.invoke('play:verify', server),
+  onInstallProgress: (cb) => ipcRenderer.on('install:progress', (_e, p) => cb(p)),
 });

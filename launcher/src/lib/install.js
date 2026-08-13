@@ -229,9 +229,54 @@ async function installModpack({ modpack, modsDir, downloadsDir, resolveDownload,
   return { ok: complete, installed, skipped, pending, failed };
 }
 
+/**
+ * Where a plugin actually lives on disk.
+ *
+ * MO2's virtual filesystem only exists while the game is running, so outside it
+ * a plugin is either inside one of the mod folders or in the game's own Data
+ * directory. Mods win, because that is what the overlay does at runtime.
+ */
+function resolvePluginPath(modsDir, gameDataDir, filename) {
+  let mods = [];
+  try {
+    mods = fs.readdirSync(modsDir, { withFileTypes: true }).filter((e) => e.isDirectory());
+  } catch {
+    // no instance yet
+  }
+
+  for (const mod of mods) {
+    const candidate = path.join(modsDir, mod.name, filename);
+    if (fs.existsSync(candidate)) return candidate;
+  }
+
+  if (gameDataDir) {
+    const vanilla = path.join(gameDataDir, filename);
+    if (fs.existsSync(vanilla)) return vanilla;
+  }
+  return null;
+}
+
+/**
+ * Hash every plugin in a load order, in order, ready for verification.
+ *
+ * A plugin that cannot be found is kept in place with nulls rather than
+ * dropped, so the indices still line up and the mismatch is reported against
+ * the right position instead of shifting everything after it.
+ */
+function collectInstalledPlugins(loadOrder, modsDir, gameDataDir) {
+  const preflight = require('./preflight');
+  return (loadOrder || []).map((filename) => {
+    const full = resolvePluginPath(modsDir, gameDataDir, filename);
+    if (!full) return { filename, crc32: null, size: null, missing: true };
+    return preflight.hashPlugin(full, filename) || { filename, crc32: null, size: null, missing: true };
+  });
+}
+
 module.exports = {
   STAMP,
   sha256File,
+  resolvePluginPath,
+  collectInstalledPlugins,
   safeModName,
   isInstalled,
   installArchive,

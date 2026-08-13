@@ -140,16 +140,16 @@ async function openSheet(server) {
     : 'Save server';
 
   $('sheet').hidden = false;
-
-  // Play needs an install pipeline that does not exist yet
-  $('sheet-play').disabled = true;
-  $('sheet-play').title = 'Mod installation is not implemented yet';
+  $('sheet-progress').hidden = true;
+  $('sheet-install').hidden = true;
+  showProblems([]);
+  currentModpack = null;
 
   const pack = await window.hg.fetchModpack(server.host, server.port);
   if (pack.ok) {
+    currentModpack = pack.modpack;
     const mods = (pack.modpack.mods || []).length;
-    const version = pack.modpack.version;
-    $('sheet-modpack').textContent = `${mods} mod${mods === 1 ? '' : 's'} (v${version})`;
+    $('sheet-modpack').textContent = `${mods} mod${mods === 1 ? '' : 's'} (v${pack.modpack.version})`;
   } else if (pack.notPublished) {
     $('sheet-modpack').textContent = 'none published';
     $('sheet-note').textContent = 'This server has no modpack, so vanilla Skyrim is all you need.';
@@ -157,6 +157,8 @@ async function openSheet(server) {
     $('sheet-modpack').textContent = 'unavailable';
     $('sheet-note').textContent = `Could not read the modpack: ${pack.error}`;
   }
+
+  await refreshPlayState();
 }
 
 function closeSheet() {
@@ -195,12 +197,205 @@ $('btn-save-settings').addEventListener('click', async () => {
   refresh();
 });
 
+// ── Nexus account ────────────────────────────────────────────────────────────
+
+let account = { signedIn: false, account: null, apiKeyPage: '' };
+
+function renderAccount() {
+  $('nexus-signed-out').hidden = account.signedIn;
+  $('nexus-signed-in').hidden = !account.signedIn;
+  if (!account.signedIn || !account.account) return;
+
+  $('nexus-name').textContent = account.account.name;
+  $('nexus-tier').textContent = account.account.premium ? 'premium' : 'free';
+  // The tier decides how much clicking a modpack install costs, so it is
+  // stated plainly rather than left for the player to discover mid-install.
+  $('nexus-tier-hint').textContent = account.account.premium
+    ? 'Modpacks install automatically.'
+    : 'Nexus only gives Premium accounts automatic downloads, so free accounts confirm each mod on the Nexus site. The launcher opens each page for you.';
+}
+
+$('btn-nexus-signin').addEventListener('click', async () => {
+  const err = $('nexus-error');
+  err.hidden = true;
+  $('btn-nexus-signin').disabled = true;
+  try {
+    const res = await window.hg.nexusSignIn($('nexus-key').value);
+    if (!res.ok) {
+      err.textContent = res.error;
+      err.hidden = false;
+      return;
+    }
+    $('nexus-key').value = '';
+    account = await window.hg.nexusAccount();
+    renderAccount();
+  } finally {
+    $('btn-nexus-signin').disabled = false;
+  }
+});
+
+$('btn-nexus-signout').addEventListener('click', async () => {
+  await window.hg.nexusSignOut();
+  account = await window.hg.nexusAccount();
+  renderAccount();
+});
+
+$('link-api-keys').addEventListener('click', (e) => {
+  e.preventDefault();
+  window.hg.openExternal(account.apiKeyPage);
+});
+
+// ── Mod Organizer state ──────────────────────────────────────────────────────
+
+async function renderMo2() {
+  const status = await window.hg.installStatus();
+  $('mo2-state').textContent = status.mo2Installed ? 'Ready' : 'Not set up yet';
+  $('btn-mo2-install').hidden = status.mo2Installed;
+  return status;
+}
+
+$('btn-mo2-install').addEventListener('click', async () => {
+  $('btn-mo2-install').disabled = true;
+  $('mo2-state').textContent = 'Setting up...';
+  const res = await window.hg.ensureMo2();
+  $('mo2-state').textContent = res.ok ? 'Ready' : `Failed: ${res.error}`;
+  $('btn-mo2-install').disabled = false;
+  renderMo2();
+});
+
+// ── install and play ─────────────────────────────────────────────────────────
+
+let currentModpack = null;
+
+window.hg.onInstallProgress((p) => {
+  const bar = $('sheet-progress');
+  const fill = $('sheet-progress-fill');
+  const text = $('sheet-progress-text');
+  bar.hidden = false;
+
+  if (p.scope === 'mo2') {
+    text.textContent = p.phase === 'download' ? 'Downloading Mod Organizer...' : 'Unpacking Mod Organizer...';
+    fill.style.width = `${Math.round((p.progress || 0) * 100)}%`;
+  } else if (p.scope === 'download') {
+    text.textContent = `Downloading ${p.name}...`;
+    fill.style.width = `${Math.round((p.progress || 0) * 100)}%`;
+  } else if (p.scope === 'install' && p.phase === 'mod') {
+    text.textContent = `Installing ${p.name} (${p.index + 1} of ${p.total})`;
+    fill.style.width = `${Math.round(((p.index + 1) / p.total) * 100)}%`;
+  } else if (p.phase === 'done') {
+    text.textContent = 'Finishing up...';
+  }
+});
+
+function showProblems(problems) {
+  const ul = $('sheet-problems');
+  ul.textContent = '';
+  if (!problems || !problems.length) {
+    ul.hidden = true;
+    return;
+  }
+  for (const problem of problems) {
+    const li = document.createElement('li');
+    li.textContent = problem.message;
+    ul.appendChild(li);
+  }
+  ul.hidden = false;
+}
+
+$('sheet-install').addEventListener('click', async () => {
+  if (!currentModpack) return;
+  $('sheet-install').disabled = true;
+  showProblems([]);
+  $('sheet-note').textContent = '';
+
+  try {
+    const res = await window.hg.installModpack(currentModpack);
+    $('sheet-progress').hidden = true;
+
+    if (res.ok) {
+      $('sheet-note').textContent =
+        `Installed ${res.installed.length} mod(s), ${res.skipped.length} already up to date.`;
+      await refreshPlayState();
+      return;
+    }
+
+    if (res.pending && res.pending.length) {
+      // Not a failure: this is the free-account path beginning.
+      $('sheet-note').textContent =
+        `${res.pending.length} mod(s) need confirming on the Nexus site. ` +
+        `Opening the first now; click "Mod Manager Download" and the launcher will take it from there.`;
+      // Handing over more than one page at a time buries the browser
+      window.hg.openExternal(
+        `https://www.nexusmods.com/skyrimspecialedition/mods/${res.pending[0].mod.nexusModId}?tab=files&file_id=${res.pending[0].mod.nexusFileId}&nmm=1`
+      );
+    }
+
+    showProblems((res.failed || []).map((f) => ({ message: `${f.name}: ${f.error}` })));
+  } finally {
+    $('sheet-install').disabled = false;
+  }
+});
+
+/** Ask the main process whether this install satisfies the server. */
+async function refreshPlayState() {
+  if (!current || !current.online) {
+    $('sheet-play').disabled = true;
+    return;
+  }
+
+  $('sheet-play').disabled = true;
+  $('sheet-play').textContent = 'Checking...';
+  const res = await window.hg.verifyForPlay(current);
+  $('sheet-play').textContent = 'Play';
+
+  if (res.ok) {
+    showProblems([]);
+    $('sheet-play').disabled = false;
+    $('sheet-install').hidden = true;
+    $('sheet-note').textContent = 'This install matches the server.';
+    return;
+  }
+
+  // Verifying before launch means a mismatch is explained here, rather than
+  // becoming a refused connection after a full Skyrim load.
+  showProblems(res.problems || [{ message: res.error }]);
+  $('sheet-install').hidden = !currentModpack;
+  $('sheet-note').textContent = currentModpack
+    ? 'Install the modpack to fix this.'
+    : '';
+}
+
 // ── boot ─────────────────────────────────────────────────────────────────────
+
+// A protocol click can arrive before this window exists, so anything queued in
+// the main process is drained on startup as well as listened for live.
+async function handleNxm(parsed) {
+  if (!currentModpack) return;
+  const mod = (currentModpack.mods || []).find(
+    (m) => m.nexusModId === parsed.modId && m.nexusFileId === parsed.fileId
+  );
+  if (!mod) return;
+
+  $('sheet-note').textContent = `Downloading ${mod.name}...`;
+  const res = await window.hg.installFromHandoff(mod, parsed);
+  $('sheet-note').textContent = res.ok
+    ? `${mod.name} installed.`
+    : `${mod.name} failed: ${res.error}`;
+  await refreshPlayState();
+}
+
+window.hg.onNxmDownload(handleNxm);
 
 (async () => {
   settings = await window.hg.getSettings();
   $('setting-backend').value = settings.backendUrl || '';
   $('setting-skyrim').value = settings.skyrimPath || '';
+
+  account = await window.hg.nexusAccount();
+  renderAccount();
+  renderMo2();
+
+  for (const queued of await window.hg.drainNxm()) handleNxm(queued);
 
   await refresh();
   refreshTimer = setInterval(refresh, settings.refreshIntervalMs);

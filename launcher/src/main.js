@@ -6,6 +6,9 @@ const Store = require('electron-store');
 const config = require('./config');
 const servers = require('./lib/servers');
 const nexus = require('./lib/nexus');
+const mo2 = require('./lib/mo2');
+const install = require('./lib/install');
+const preflight = require('./lib/preflight');
 const pkg = require('../package.json');
 
 nexus.setAppIdentity('HardGamingSkyMPLauncher', pkg.version);
@@ -223,4 +226,104 @@ ipcMain.handle('nexus:signOut', () => {
   store.delete('nexusApiKey');
   store.delete('nexusAccount');
   return { ok: true };
+});
+
+// ── install and play ─────────────────────────────────────────────────────────
+
+const progress = (payload) => {
+  if (win && !win.isDestroyed()) win.webContents.send('install:progress', payload);
+};
+
+ipcMain.handle('mo2:ensure', async () => {
+  mo2.setLogger((...args) => console.log(...args));
+  return mo2.ensureInstalled((p) => progress({ ...p, scope: 'mo2' }));
+});
+
+ipcMain.handle('install:status', () => ({
+  mo2Installed: mo2.isInstalled(),
+  mo2Root: mo2.getRoot(),
+  skyrimPath: store.get('skyrimPath') || '',
+  nxmRegistered: app.isDefaultProtocolClient('nxm'),
+}));
+
+/**
+ * Fetch one file to the downloads directory.
+ *
+ * `nxm` carries the credential from a protocol handoff, which is what lets a
+ * free account resolve a link at all.
+ */
+async function fetchMod(mod, nxm = null) {
+  const key = store.get('nexusApiKey');
+  if (!key) return { ok: false, error: 'Sign in to Nexus first.' };
+  if (!mod.nexusModId || !mod.nexusFileId) {
+    return { ok: false, error: `${mod.name} has no Nexus id, so it cannot be downloaded automatically.` };
+  }
+
+  const links = await nexus.getDownloadLinks(key, mod.nexusModId, mod.nexusFileId, nxm);
+  if (!links.ok) return { ok: false, error: links.error, needsHandoff: links.needsHandoff };
+
+  const dest = path.join(mo2.getDownloadsDir(), mod.fileName || `${mod.nexusModId}-${mod.nexusFileId}`);
+  for (const url of links.urls) {
+    const res = await mo2.download(url, dest, (p) =>
+      progress({ scope: 'download', name: mod.name, progress: p })
+    );
+    // Nexus returns several mirrors; a dead one should not fail the install
+    if (res.ok) return { ok: true, path: dest };
+  }
+  return { ok: false, error: `every download mirror failed for ${mod.name}` };
+}
+
+ipcMain.handle('install:modpack', async (_e, modpack) => {
+  if (!mo2.isInstalled()) {
+    const boot = await mo2.ensureInstalled((p) => progress({ ...p, scope: 'mo2' }));
+    if (!boot.ok) return { ok: false, error: boot.error };
+  }
+
+  return install.installModpack({
+    modpack,
+    modsDir: mo2.getModsDir(),
+    downloadsDir: mo2.getDownloadsDir(),
+    resolveDownload: (mod) => fetchMod(mod),
+    onProgress: (p) => progress({ ...p, scope: 'install' }),
+  });
+});
+
+// Completes one mod after a free-account click-through
+ipcMain.handle('install:fromHandoff', async (_e, mod, nxm) => {
+  const fetched = await fetchMod(mod, nxm);
+  if (!fetched.ok) return fetched;
+
+  const actual = await install.sha256File(fetched.path);
+  if (mod.sha256 && actual !== mod.sha256) {
+    return { ok: false, error: `${mod.name} does not match the modpack and was not installed.` };
+  }
+
+  return install.installArchive(fetched.path, mo2.getModsDir(), mod.name || mod.fileName, {
+    sha256: actual,
+    fileName: mod.fileName,
+    nexusModId: mod.nexusModId,
+    nexusFileId: mod.nexusFileId,
+    plugins: mod.plugins || [],
+  });
+});
+
+/** Verify the prepared install against a server's manifest. */
+ipcMain.handle('play:verify', async (_e, server) => {
+  const manifestRes = await servers.getJson(
+    `http://${server.host}:${server.port}/manifest.json`,
+    reqOpts()
+  );
+  if (!manifestRes.ok) {
+    return { ok: false, error: `Could not read the server's manifest: ${manifestRes.error}` };
+  }
+
+  const manifest = manifestRes.body || {};
+  const skyrimPath = store.get('skyrimPath') || '';
+  const dataDir = skyrimPath ? path.join(skyrimPath, 'Data') : null;
+
+  const loadOrder = (manifest.mods || []).map((m) => m.filename);
+  const installed = install.collectInstalledPlugins(loadOrder, mo2.getModsDir(), dataDir);
+
+  const result = preflight.verify(installed, manifest);
+  return { ok: result.ok, problems: result.problems, summary: preflight.summarise(result) };
 });
