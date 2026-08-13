@@ -31,7 +31,9 @@ export class Settings {
   masterKey: string | null = null;
   port = 7777;
   maxPlayers = 100;
-  master: string = "https://gateway.skymp.net";
+  // Empty by default rather than upstream's gateway: a server should not call
+  // out to someone else's infrastructure unless its operator asked for it.
+  master: string = "";
   name = 'Yet Another Server';
   gamemodePath = '...';
   loadOrder = new Array<string>();

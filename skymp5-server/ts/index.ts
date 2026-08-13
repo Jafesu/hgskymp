@@ -17,7 +17,6 @@ sourceMapSupport.install({
 import * as scampNative from "./scampNative";
 import { Settings } from "./settings";
 import { System } from "./systems/system";
-import { MasterClient } from "./systems/masterClient";
 import { PlatformClient } from "./systems/platformClient";
 import { Spawn } from "./systems/spawn";
 import { Login } from "./systems/login";
@@ -193,7 +192,10 @@ const main = async () => {
   const systems = new Array<System>();
   systems.push(
     new MetricsSystem(),
-    new MasterClient(log, port, master, maxPlayers, name, masterKey, 5000, offlineMode),
+    // MasterClient is deliberately not registered. It announces this server to
+    // upstream's gateway every five seconds, which is someone else's
+    // infrastructure and does nothing for us. PlatformClient replaces it.
+    // The class is kept because login.ts still shares its master-api shape.
     new PlatformClient(log, platform ?? {}, dataDir, name, maxPlayers, port),
     new Spawn(log),
     new Login(log, maxPlayers, master, port, masterKey, offlineMode),
@@ -220,8 +222,31 @@ const main = async () => {
 
   console.log(`Current process ID is ${pid}`);
 
+  // Change forms are written by WorldState::TickSaveStorage, which hands the
+  // batch to AsyncSaveStorage and clears its busy flag from a completion
+  // callback on a later tick. Exiting the instant a signal arrives drops
+  // whatever had not finished, so the loop keeps ticking for a short grace
+  // period first. Neither the pending queue nor the busy flag is exposed to
+  // JS, so this is a bounded drain rather than a guaranteed flush; a real one
+  // needs a flush binding on the C++ side.
+  const SHUTDOWN_DRAIN_MS = 5000;
+  let shuttingDown = false;
+
+  const requestShutdown = (signal: string) => {
+    if (shuttingDown) {
+      // A second signal means someone is done waiting
+      console.log(`Received ${signal} again, exiting immediately`);
+      process.exit(130);
+    }
+    shuttingDown = true;
+    console.log(`Received ${signal}, draining saves for up to ${SHUTDOWN_DRAIN_MS}ms`);
+  };
+
+  process.on("SIGTERM", () => requestShutdown("SIGTERM"));
+  process.on("SIGINT", () => requestShutdown("SIGINT"));
+
   (async () => {
-    while (1) {
+    while (!shuttingDown) {
       const endTimerHistogram = tickDurationHistogram.startTimer();
       const endTimerSummary = tickDurationSummary.startTimer();
       try {
@@ -234,6 +259,20 @@ const main = async () => {
         endTimerSummary();
       }
     }
+
+    const deadline = Date.now() + SHUTDOWN_DRAIN_MS;
+    while (Date.now() < deadline) {
+      try {
+        server.tick();
+      } catch (e) {
+        console.error(`in server.tick during shutdown:\n${e.stack}`);
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 10));
+    }
+
+    console.log("Shutdown complete");
+    process.exit(0);
   })();
 
   for (const system of systems) {
